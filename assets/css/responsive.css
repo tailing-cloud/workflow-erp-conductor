@@ -1,0 +1,657 @@
+/* ========================================================
+   Conductor ERP - Tablet & Mobile Responsive Web Design (RWD)
+   支援平板裝置（直向 768px~834px、橫向 1024px~1280px）與觸控操作體驗
+   ======================================================== */
+
+/* 平板專用選單按鈕（預設桌面隱藏） */
+.tablet-menu-btn {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 8px;
+    background: linear-gradient(to bottom, #FFFFFF 0%, #DCE6F2 100%);
+    border: 1px solid #7F9DB9;
+    border-radius: 3px;
+    color: #1E395B;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    margin-right: 6px;
+}
+
+.tablet-menu-btn:active {
+    background: #C4D8EE;
+}
+
+/* 抽屜選單遮罩層（預設不顯示） */
+.sidebar-backdrop {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 990;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none;
+}
+
+.sidebar-backdrop.active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 流程圖平板縮放切換輔助鈕 */
+.canvas-tab-aux {
+    padding: 2px 10px;
+    background-color: #E2EDF7;
+    border: 1px solid #7F9DB9;
+    border-bottom: none;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 3px 3px 0 0;
+    margin-left: auto;
+    margin-right: 6px;
+    color: #185286;
+    font-weight: bold;
+}
+
+.canvas-tab-aux:hover {
+    background-color: #FFF3B8;
+    color: #A04000;
+}
+
+/* ========================================================
+   1. 平板一般尺寸 (包含 iPad 橫向/直向、Android 平板、觸控筆電，寬度 <= 1366px 或觸控設備)
+   ======================================================== */
+@media screen and (max-width: 1366px), (pointer: coarse), (max-height: 850px) {
+    /* 頂部 Conductor 標題列 */
+    .conductor-topbar {
+        height: 32px;
+        padding: 0 8px;
+    }
+
+    .conductor-topbar .left-logo {
+        font-size: 13px;
+    }
+
+    .tablet-menu-btn {
+        display: inline-flex !important;
+    }
+
+    .conductor-topbar .right-user-info {
+        font-size: 11px;
+        margin-right: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 260px;
+    }
+
+    /* Ribbon 功能頁籤列 */
+    .ribbon-tabs {
+        height: 28px;
+        padding-left: 6px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ribbon-tab {
+        padding: 5px 14px;
+        font-size: 12px;
+    }
+
+    /* Ribbon 工具列容器：平滑橫向滑動，防止擠壓變形 */
+    .ribbon-toolbar {
+        min-height: 86px;
+        height: 86px;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: nowrap;
+    }
+
+    .ribbon-toolbar::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .ribbon-toolbar::-webkit-scrollbar-thumb {
+        background: #A6C2E2;
+        border-radius: 3px;
+    }
+
+    .ribbon-group {
+        flex-shrink: 0;
+        padding: 2px 6px 3px 6px;
+    }
+
+    .ribbon-btn-large {
+        height: 52px;
+        padding: 2px 8px;
+        font-size: 11px;
+    }
+
+    .ribbon-btn-large span:first-child {
+        font-size: 20px !important;
+    }
+
+    .ribbon-btn-small {
+        height: 20px;
+        font-size: 11px;
+    }
+
+    /* 主工作區與分割線 */
+    .conductor-main-area {
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* 導覽側邊欄 TreeView：增加觸控行距與點擊面積 */
+    .tree-item-label {
+        padding: 5px 6px;
+        font-size: 13px;
+        min-height: 28px;
+    }
+
+    .tree-arrow {
+        width: 16px;
+        height: 16px;
+        font-size: 11px;
+    }
+
+    .tree-folder, .tree-leaf-doc {
+        font-size: 14px;
+    }
+
+    .tree-leaf-icon.B, .tree-leaf-icon.Q, .tree-leaf-icon.I, .tree-leaf-icon.R {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+    }
+
+    .sidebar-search-box {
+        padding: 6px 8px;
+    }
+
+    .sidebar-search-box input {
+        height: 26px;
+        font-size: 12px;
+    }
+
+    .sidebar-search-btn {
+        font-size: 15px;
+        padding: 2px 6px;
+    }
+
+    .sidebar-view-mode {
+        padding: 5px 8px;
+    }
+
+    .sidebar-view-mode select {
+        height: 26px;
+        font-size: 12px;
+    }
+
+    /* 右側主畫布容器 */
+    .canvas-wrapper {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .canvas-tabs {
+        height: 28px;
+        padding-left: 6px;
+    }
+
+    .canvas-tab {
+        padding: 4px 14px;
+        font-size: 12px;
+    }
+
+    /* ==========================================
+       ERP 模組視窗：平板上自適應充滿工作區
+       ========================================== */
+    .erp-window {
+        min-width: 0 !important;
+        min-height: 0 !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+
+    /* 在平板中，開窗預設最大化，讓畫面內容完整展開 */
+    .erp-window.maximized {
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* 視窗標題列與控制項擴大，適合手指觸控 */
+    .erp-window-titlebar {
+        height: 32px;
+        min-height: 32px !important;
+        padding: 0 6px 0 8px;
+        font-size: 13px;
+        flex-shrink: 0 !important;
+    }
+
+    .erp-window-titlebar .win-controls {
+        gap: 4px;
+    }
+
+    .erp-window-titlebar .win-btn {
+        width: 28px;
+        height: 24px;
+        font-size: 13px;
+        border-radius: 3px;
+    }
+
+    /* 視窗功能選單列 */
+    .erp-menubar {
+        height: 24px !important;
+        min-height: 24px !important;
+        font-size: 12px;
+        padding-left: 8px;
+        flex-shrink: 0 !important;
+    }
+
+    .erp-menu-item {
+        padding: 2px 6px;
+    }
+
+    /* 模組工具列：強制保護高度，絕對禁止被 flex 壓縮，平滑橫向滑動 */
+    .erp-toolbar {
+        height: 36px !important;
+        min-height: 36px !important;
+        padding: 0 6px;
+        gap: 4px;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        white-space: nowrap !important;
+    }
+
+    .erp-toolbar::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .erp-toolbar::-webkit-scrollbar-thumb {
+        background: #C0C8D0;
+    }
+
+    .erp-tb-btn {
+        height: 30px !important;
+        min-width: 30px !important;
+        padding: 2px 6px;
+        font-size: 12px;
+        border-radius: 3px;
+        flex-shrink: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .erp-tb-btn img {
+        width: 18px;
+        height: 18px;
+    }
+
+    .erp-tb-btn.tb-btn-audit,
+    .erp-tb-btn.tb-btn-unaudit,
+    .erp-tb-btn.tb-btn-cust-confirm,
+    .erp-tb-btn.tb-btn-transfer {
+        height: 32px !important;
+        min-height: 32px !important;
+        padding: 1px 7px;
+        flex-shrink: 0 !important;
+    }
+
+    .erp-tb-btn.tb-btn-crossquery {
+        height: 30px !important;
+        padding: 0 5px;
+        flex-shrink: 0 !important;
+    }
+
+    .erp-tb-sep {
+        height: 22px;
+        margin: 0 2px;
+        flex-shrink: 0 !important;
+    }
+
+    /* 表單頁籤列（主頁籤與子頁籤）可橫向滑動 */
+    .erp-tab-header,
+    .erp-subtab-header {
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+        scrollbar-width: none;
+        flex-shrink: 0 !important;
+        min-height: 26px !important;
+    }
+
+    .erp-tab-header::-webkit-scrollbar,
+    .erp-subtab-header::-webkit-scrollbar {
+        display: none;
+    }
+
+    .erp-tab-btn {
+        padding: 5px 14px;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    .erp-subtab-btn {
+        padding: 5px 12px;
+        font-size: 12px;
+        min-height: 28px;
+        flex-shrink: 0;
+    }
+
+    /* 表單單頭與欄位輸入區 */
+    .erp-header-panel,
+    .erp-tab-content {
+        padding: 6px 8px;
+        flex-shrink: 0;
+    }
+
+    .erp-form-row {
+        gap: 8px 12px;
+        margin-bottom: 5px;
+    }
+
+    .erp-field {
+        gap: 4px;
+    }
+
+    .erp-field label {
+        font-size: 12px;
+        min-width: 60px;
+    }
+
+    .erp-field input,
+    .erp-field select,
+    .erp-field textarea {
+        height: 26px;
+        font-size: 13px;
+        padding: 2px 5px;
+    }
+
+    /* 開窗查詢按鈕與日曆按鈕：擴大點選區域 */
+    .erp-field .lookup-btn,
+    .lookup-icon-btn,
+    .grid-date-btn {
+        width: 26px !important;
+        height: 26px !important;
+        font-size: 13px !important;
+    }
+
+    /* 客戶確認按鈕樣式 */
+    .erp-cust-confirm-btn {
+        height: 26px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    /* 單身表格 DataGrid：滑動瀏覽體驗 */
+    .erp-datagrid-container {
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+    }
+
+    .erp-grid-table th {
+        height: 26px;
+        font-size: 12px;
+        padding: 2px 6px;
+    }
+
+    .erp-grid-table td {
+        height: 28px;
+        font-size: 13px;
+        padding: 1px 4px;
+    }
+
+    .erp-grid-table td input {
+        font-size: 13px;
+        height: 26px;
+    }
+
+    .erp-grid-table td button {
+        min-width: 22px;
+        height: 22px;
+    }
+
+    /* 表單底部合計面板：支援換行防止被切除 */
+    .erp-totals-panel-puri09 {
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+        padding: 6px 8px !important;
+    }
+
+    .erp-totals-panel-split {
+        padding: 6px 10px !important;
+        gap: 14px !important;
+    }
+
+    /* 串查作業選單觸控增強 */
+    #erp-crossquery-popup-menu {
+        max-width: 90vw !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.3) !important;
+    }
+    #erp-crossquery-popup-menu .erp-crossquery-menu-item {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+        min-height: 36px !important;
+    }
+
+    /* 確保欄位自適應不超出容器邊界 */
+    .erp-field {
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+    .erp-field input, .erp-field select {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* 萬用開窗查詢對話框 (Universal Lookup Dialog) */
+    .erp-lookup-window {
+        width: 94vw !important;
+        max-width: 720px !important;
+        height: 86vh !important;
+        max-height: 560px !important;
+    }
+
+    .erp-lookup-titlebar {
+        height: 30px;
+        font-size: 13px;
+    }
+
+    .erp-lookup-topbar {
+        padding: 5px 8px;
+        gap: 4px;
+    }
+
+    .erp-lookup-topbar select,
+    .erp-lookup-topbar input {
+        height: 26px;
+        font-size: 12px;
+    }
+
+    .erp-lookup-nav-btn {
+        min-width: 26px;
+        height: 26px;
+        font-size: 12px;
+    }
+
+    .erp-lookup-table th {
+        padding: 4px 6px;
+        font-size: 12px;
+    }
+
+    .erp-lookup-table td {
+        height: 28px;
+        font-size: 12px;
+        padding: 2px 6px;
+    }
+
+    .lookup-act-btn {
+        height: 30px;
+        padding: 2px 18px;
+        font-size: 13px;
+    }
+
+    /* 底部系統工作列 */
+    .conductor-taskbar {
+        height: 30px;
+        padding: 0 8px;
+    }
+
+    .taskbar-item {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 12px;
+        max-width: 160px;
+    }
+
+    .taskbar-status {
+        font-size: 10px;
+    }
+
+    /* 日曆選擇器 */
+    .erp-calendar-popup {
+        width: 250px;
+    }
+
+    .erp-cal-day {
+        height: 26px;
+        font-size: 13px;
+    }
+
+    /* 登入視窗響應式居中 */
+    .login-window {
+        width: 90vw;
+        max-width: 440px;
+    }
+
+    .login-field input, .login-field select {
+        height: 30px;
+        font-size: 14px;
+    }
+
+    .btn-login {
+        height: 34px;
+        padding: 4px 18px;
+        font-size: 13px;
+    }
+}
+
+/* ========================================================
+   2. 平板直向尺寸 (寬度 <= 850px: iPad Portrait / 直立平板)
+   ======================================================== */
+@media screen and (max-width: 850px) {
+    /* 側邊欄變更為「抽屜滑出模式 (Off-canvas Drawer)」 */
+    .nav-sidebar {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 290px !important;
+        min-width: 290px !important;
+        z-index: 1000 !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.35) !important;
+        transform: translateX(-100%);
+        transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    .nav-sidebar.drawer-open {
+        transform: translateX(0) !important;
+    }
+
+    /* 側邊分割線在直立平板抽屜模式下隱藏 */
+    .sidebar-splitter {
+        display: none !important;
+    }
+
+    /* 兩欄式表單改為垂直單欄排列，避免欄位被壓窄 */
+    .erp-two-column-form {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    /* 訂單樹狀查詢視窗 (COPQ05) */
+    .order-tree-wrapper {
+        flex-direction: column !important;
+    }
+
+    .order-tree-left {
+        width: 100% !important;
+        max-height: 220px !important;
+    }
+
+    /* 合計面板垂直排列 */
+    .erp-totals-panel-split {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    .erp-totals-panel-split .totals-col .erp-field label {
+        width: 85px !important;
+        min-width: 85px !important;
+    }
+
+    /* 底部狀態列精簡 */
+    .taskbar-status {
+        display: none;
+    }
+
+    /* 流程圖容器在直立平板下平滑滑動 */
+    .flowchart-container {
+        padding: 10px !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+    }
+
+    .flowchart-diagram {
+        transform-origin: top left;
+    }
+}
+
+/* ========================================================
+   3. 觸控設備手指操作體驗優化 (Pointer: Coarse)
+   ======================================================== */
+@media (pointer: coarse) {
+    /* 點擊反饋與觸控滾動平滑度 */
+    * {
+        -webkit-tap-highlight-color: rgba(49, 106, 197, 0.15);
+    }
+
+    /* 避免 iOS Safari 點擊延遲 */
+    button, a, input, select {
+        touch-action: manipulation;
+    }
+
+    /* 增加滾動條寬度以利於手指識別或自動隱藏 */
+    .treeview-container,
+    .erp-window-body,
+    .erp-datagrid-container,
+    .erp-lookup-grid-container {
+        -webkit-overflow-scrolling: touch;
+    }
+}

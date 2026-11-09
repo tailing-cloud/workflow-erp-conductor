@@ -1,0 +1,1407 @@
+/* 1:1 ERP Window, Forms, Toolbars, and DataGrid Styling */
+
+/* MDI Window Container */
+.erp-window {
+    position: absolute;
+    background-color: #ECE9D8;
+    border: 1px solid #707070;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+    min-width: 600px;
+    min-height: 400px;
+    z-index: 100;
+}
+
+.erp-window.maximized {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0;
+}
+
+.erp-window-titlebar {
+    height: 25px;
+    background: linear-gradient(to bottom, #7292C2 0%, #4D74A9 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px 0 6px;
+    cursor: move;
+    font-size: 12px;
+}
+
+.erp-window.inactive .erp-window-titlebar {
+    background: linear-gradient(to bottom, #A6B4C4 0%, #8898A8 100%);
+}
+
+.erp-window-titlebar .win-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: normal;
+}
+
+.win-wf-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    background: #623F99;
+    color: #FFFFFF;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 2px;
+    margin-right: 4px;
+    letter-spacing: -0.5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.erp-window-titlebar .win-controls {
+    display: flex;
+    gap: 2px;
+}
+
+/* Window Menu Bar (資料(D) 功能(F) 離開(X)) */
+.erp-menubar {
+    height: 22px;
+    background-color: #ECE9D8;
+    border-bottom: 1px solid #D4D0C8;
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
+    gap: 12px;
+    font-size: 12px;
+    flex-shrink: 0 !important;
+    min-height: 22px !important;
+}
+
+.erp-menu-item {
+    cursor: pointer;
+    padding: 1px 4px;
+    flex-shrink: 0;
+}
+
+.erp-menu-item:hover {
+    background-color: #316AC5;
+    color: #FFFFFF;
+}
+
+/* Classic ERP Toolbar */
+.erp-toolbar {
+    height: 32px;
+    min-height: 32px !important;
+    background: linear-gradient(to bottom, #FFFFFF 0%, #ECE9D8 100%);
+    border-bottom: 1px solid #94A6B8;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    gap: 3px;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0 !important;
+}
+
+.erp-tb-btn {
+    min-width: 24px;
+    width: auto;
+    height: 22px;
+    padding: 0 5px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    color: #333333;
+    flex-shrink: 0 !important;
+}
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    color: #333333;
+}
+
+.erp-tb-btn img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: pixelated;
+}
+
+.erp-tb-btn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #FFF3B8 0%, #FFE682 100%);
+    border-color: #D6A83E;
+}
+
+.erp-tb-btn:active:not(:disabled) {
+    background: #E5C365;
+    border-color: #B58B24;
+}
+
+.erp-tb-btn.btn-confirm {
+    color: #008000 !important;
+    font-weight: bold;
+}
+
+.erp-tb-btn.btn-unconfirm {
+    color: #C00000 !important;
+    font-weight: bold;
+}
+
+.erp-tb-btn.btn-transfer {
+    color: #003399 !important;
+    font-weight: bold;
+}
+
+/* 1:1 Authentic ERP Toolbar Buttons (Image 4) */
+.erp-tb-btn.tb-btn-audit {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 1px 5px;
+    line-height: 1;
+}
+.erp-tb-btn.tb-btn-audit .audit-icon-v {
+    color: #CC0000;
+    font-size: 13px;
+    font-weight: 900;
+}
+.erp-tb-btn.tb-btn-audit .audit-text {
+    color: #CC0000;
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 1px;
+}
+
+.erp-tb-btn.tb-btn-unaudit {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 1px 5px;
+    line-height: 1;
+}
+.erp-tb-btn.tb-btn-unaudit .unaudit-icon-x {
+    color: #555555;
+    font-size: 11px;
+    font-weight: bold;
+}
+.erp-tb-btn.tb-btn-unaudit .unaudit-text {
+    color: #555555;
+    font-size: 10px;
+    margin-top: 1px;
+}
+
+.erp-tb-btn.tb-btn-cust-confirm {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 1px 6px;
+    line-height: 1;
+}
+.erp-tb-btn.tb-btn-cust-confirm .cust-icon {
+    color: #0055AA;
+    font-size: 12px;
+    font-weight: bold;
+}
+.erp-tb-btn.tb-btn-cust-confirm .cust-text {
+    color: #0055AA;
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 1px;
+}
+.erp-tb-btn.tb-btn-cust-confirm.active {
+    background: #DCEBFC;
+    border-color: #3377CC;
+}
+
+.erp-tb-btn.tb-btn-cancel {
+    color: #C00000;
+    font-weight: bold;
+    padding: 1px 6px;
+}
+
+.erp-tb-btn.tb-btn-transfer {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 26px;
+    padding: 1px 5px;
+    gap: 3px;
+}
+.erp-tb-btn.tb-btn-transfer .trans-icon {
+    font-size: 14px;
+}
+.erp-tb-btn.tb-btn-transfer .trans-text {
+    font-size: 9px;
+    font-weight: bold;
+    color: #003399;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.erp-tb-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* 1:1 串查作業按鈕 (擷取666.PNG) */
+.erp-tb-btn.tb-btn-crossquery {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 0 3px;
+    height: 22px;
+}
+.erp-tb-btn.tb-btn-crossquery img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    display: block;
+}
+.erp-tb-btn.tb-btn-crossquery .tb-dropdown-arrow {
+    font-size: 7px;
+    line-height: 7px;
+    color: #1E293B;
+    transform: scale(0.85);
+}
+
+/* 1:1 串查作業彈出式功能選單 (對標 3大系統實機截圖) */
+#erp-crossquery-popup-menu {
+    position: absolute;
+    z-index: 999999;
+    background: #FFFFFF !important;
+    border: 1px solid #716F64 !important;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.28) !important;
+    padding: 2px 0 !important;
+    min-width: 165px !important;
+    font-family: 'Tahoma', 'PMingLiU', 'Microsoft JhengHei', sans-serif !important;
+    font-size: 12px !important;
+    user-select: none !important;
+    color: #000000 !important;
+}
+
+#erp-crossquery-popup-menu .erp-crossquery-menu-item {
+    padding: 3px 20px 3px 14px !important;
+    cursor: pointer !important;
+    display: block !important;
+    color: #000000 !important;
+    background: #FFFFFF !important;
+    white-space: nowrap !important;
+    line-height: 19px !important;
+    transition: none !important;
+    text-align: left !important;
+}
+
+#erp-crossquery-popup-menu .erp-crossquery-menu-item span {
+    color: #000000;
+}
+
+#erp-crossquery-popup-menu .erp-crossquery-menu-item:hover {
+    background: #316AC5 !important;
+    color: #FFFFFF !important;
+}
+
+#erp-crossquery-popup-menu .erp-crossquery-menu-item:hover span {
+    color: #FFFFFF !important;
+}
+
+#erp-crossquery-popup-menu .erp-crossquery-divider {
+    height: 1px !important;
+    background: #D8D8D8 !important;
+    margin: 3px 1px !important;
+    border-bottom: 1px solid #FFFFFF !important;
+}
+
+.erp-tb-sep {
+    width: 1px;
+    height: 18px;
+    background-color: #A0A0A0;
+    margin: 0 3px;
+    box-shadow: 1px 0 0 #FFFFFF;
+}
+
+
+/* Window Body Content */
+.erp-window-body {
+    flex: 1;
+    overflow: auto;
+    background-color: #ECE9D8;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Multi-level Form Tabs (1:1 擷取與實機畫面) */
+.erp-tab-header {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 0;
+    gap: 2px;
+    padding-left: 2px;
+    border-bottom: 2px solid #185286;
+    flex-shrink: 0 !important;
+    min-height: 25px !important;
+}
+
+.erp-tab-btn {
+    padding: 3px 12px;
+    background-color: #D4D0C8;
+    color: #000000;
+    border: 1px solid #94A6B8;
+    border-bottom: none;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 2px 2px 0 0;
+    flex-shrink: 0;
+}
+
+.erp-tab-btn.active {
+    background-color: #185286 !important;
+    color: #FFFFFF !important;
+    border-color: #10385C !important;
+    font-weight: bold;
+    margin-bottom: -1px;
+    z-index: 2;
+}
+
+/* Sub-tabs 採用 Windows / 鼎新原版標準樣式：底用表單空白處顏色，點到按鈕變深藍，其餘保持灰色 (1:1 擷取畫面) */
+.erp-subtab-header {
+    display: flex;
+    align-items: flex-end;
+    background-color: #ECE9D8 !important; /* 底用空白處的顏色，不再是一大塊深藍，避免顏色斷掉 */
+    padding: 2px 4px 0 4px;
+    gap: 2px;
+    border-bottom: 1px solid #7F9DB9;
+    min-height: 25px !important;
+    box-sizing: border-box;
+    flex-shrink: 0 !important;
+}
+
+.erp-subtab-btn {
+    padding: 3px 10px;
+    background-color: #D4D0C8; /* 其餘未點選按鈕保持灰色 */
+    color: #000000;
+    border: 1px solid #808080;
+    border-bottom: 1px solid #7F9DB9;
+    border-radius: 2px 2px 0 0;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    outline: none;
+    line-height: 1.2;
+    margin-bottom: 0;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.erp-subtab-btn:hover {
+    background-color: #E2DFD5;
+    color: #000000;
+}
+
+.erp-subtab-btn.active {
+    background-color: #1A5C9B !important; /* 點到按鈕變深藍色 (原版 1:1) */
+    color: #FFFFFF !important;
+    font-weight: bold;
+    border: 1px solid #0D375F !important;
+    border-bottom: 1px solid #1A5C9B !important;
+    margin-bottom: -1px; /* 覆蓋下邊框，與下方內容完美銜接，不出現顏色斷掉 */
+    padding-bottom: 4px; /* 選中時稍微高 1px，標準 Windows Tab 視覺 */
+}
+
+.erp-tab-content {
+    background-color: #ECE9D8;
+    border: 1px solid #94A6B8;
+    padding: 6px 10px;
+    position: relative;
+}
+
+/* Header Fields Area (1:1 擷取畫面 - 帶核准章) */
+.erp-header-panel {
+    background-color: #ECE9D8;
+    border: 1px solid #94A6B8;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+/* 1:1 ERP 經典紅色雙圈「核」印章 (Image 2 & Image 3) */
+.erp-stamp-he {
+    position: absolute;
+    right: 25px;
+    top: 8px;
+    width: 44px;
+    height: 44px;
+    border: 2px solid #CC0000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #CC0000;
+    font-family: "DFKai-SB", "BiauKai", "標楷體", "KaiTi", "PMingLiU", serif;
+    font-size: 24px;
+    font-weight: bold;
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1.5px #ECE9D8, inset 0 0 0 3px #CC0000;
+    transform: rotate(-10deg);
+    pointer-events: none;
+    user-select: none;
+    z-index: 10;
+}
+
+/* Grid & Inputs Form Controls */
+.erp-form-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.erp-field {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.erp-field label {
+    font-size: 12px;
+    color: #000000;
+    white-space: nowrap;
+    text-align: right;
+    min-width: 65px;
+}
+
+/* Signature ERP Colors: Cyan = Required, Yellow = Important Foreign Key */
+.erp-input-cyan {
+    background-color: #00CED1 !important;
+    color: #000000 !important;
+}
+
+.erp-input-yellow {
+    background-color: #FFFFAA !important;
+    color: #000000 !important;
+}
+
+.erp-input-readonly {
+    background-color: #EBEBE4 !important;
+    color: #000000 !important;
+}
+
+.erp-field input, .erp-field select, .erp-field textarea {
+    height: 20px;
+    border: 1px solid #7F9DB9;
+    padding: 1px 3px;
+    font-size: 12px;
+    font-family: inherit;
+    background-color: #FFFFFF;
+}
+
+.erp-field input[type="checkbox"] {
+    height: auto;
+    cursor: pointer;
+}
+
+.erp-field .lookup-btn, .lookup-icon-btn {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    border-radius: 1px;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+    margin: 0 1px;
+    vertical-align: middle;
+}
+
+.erp-field .lookup-btn:hover, .lookup-icon-btn:hover {
+    background: #FFE682;
+    border-color: #B58B24;
+}
+
+/* 客戶確認按鈕樣式 */
+.erp-cust-confirm-btn {
+    height: 20px;
+    padding: 0 6px;
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #333333;
+    user-select: none;
+}
+
+.erp-cust-confirm-btn:hover {
+    background: #FFF3B8;
+    border-color: #D6A83E;
+}
+
+.erp-cust-confirm-btn.confirmed {
+    background: #EBF6EF;
+    border-color: #2E8B57;
+}
+
+/* Classic DataGrid Table */
+.erp-datagrid-container {
+    flex: 1;
+    min-height: 140px;
+    overflow: auto;
+    background-color: #FFFFFF;
+    border: 1px solid #7F9DB9;
+    position: relative;
+}
+
+.erp-grid-table {
+    width: 100%;
+    min-width: 1100px;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: inherit;
+    table-layout: fixed;
+}
+
+.erp-grid-table th {
+    height: 22px;
+    background: linear-gradient(to bottom, #FFFFFF 0%, #D4D0C8 100%);
+    border: 1px solid #94A6B8;
+    font-weight: normal;
+    text-align: center;
+    padding: 0 4px;
+    white-space: nowrap;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.erp-grid-table th.th-cyan {
+    background: #00CED1 !important;
+    color: #000000;
+}
+
+.erp-grid-table th.th-yellow {
+    background: #FFFFAA !important;
+    color: #000000;
+}
+
+.erp-grid-table td {
+    height: 21px;
+    border: 1px solid #D4D0C8;
+    padding: 0 4px;
+    white-space: nowrap;
+    background-color: #FFFFFF;
+}
+
+/* 1:1 截圖特徵：交替白底與淺薄荷綠底色 (擷取4 & 5.PNG) */
+.erp-grid-table tr:nth-child(odd) td {
+    background-color: #FFFFFF;
+}
+
+.erp-grid-table tr:nth-child(even) td {
+    background-color: #EBF6EF; /* Mint green */
+}
+
+.erp-grid-table tr:hover td {
+    background-color: #E2EFE7;
+}
+
+.erp-grid-table tr.selected td {
+    background-color: #316AC5 !important;
+    color: #FFFFFF !important;
+}
+
+.erp-grid-table tr.selected td input {
+    color: #FFFFFF !important;
+}
+
+.erp-grid-table td input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 0 2px;
+}
+
+.erp-grid-table td input:focus {
+    outline: 1px solid #336699;
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+}
+
+/* Totals Summary Footer (1:1 多列合計面板 - 擷取1 & 2.PNG) */
+.erp-totals-panel {
+    background-color: #ECE9D8;
+    border: 1px solid #94A6B8;
+    border-top: none;
+    padding: 4px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+/* 1:1 進貨單建立作業 (PURI09) 底部總計面板 (截圖131: 原幣、本幣、數量合計 橫向三欄並列) */
+.erp-totals-panel-puri09 {
+    background-color: #ECE9D8;
+    border-top: 1px solid #7F9DB9;
+    padding: 4px 8px;
+    font-size: 12px;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 20px;
+    align-items: flex-start !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box;
+}
+
+/* 左右平均兩欄合計面板 (1:1 擷取3.PNG - COPI06客戶訂單) */
+.erp-totals-panel-split {
+    background-color: #ECE9D8;
+    border: 1px solid #94A6B8;
+    border-top: 1px solid #7F9DB9 !important;
+    padding: 4px 16px;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between;
+    gap: 28px;
+    flex-shrink: 0;
+}
+
+.erp-totals-panel-split .totals-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.erp-totals-panel-split .totals-col .erp-field {
+    display: flex;
+    align-items: center;
+}
+
+.erp-totals-panel-split .totals-col .erp-field label {
+    width: 95px;
+    min-width: 95px;
+    text-align: right;
+    margin-right: 6px;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.erp-totals-panel-split .totals-col .erp-field input {
+    flex: 1;
+    max-width: 260px;
+    min-width: 120px;
+    height: 20px;
+    text-align: right;
+    padding: 1px 4px;
+    border: 1px solid #7F9DB9;
+    background-color: #FFFFFF;
+    font-size: 12px;
+}
+
+.erp-totals-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 18px;
+    align-items: center;
+    font-size: 12px;
+}
+
+/* 兩欄左右對稱表單佈局 (擷取1, 2, 3.PNG) */
+.erp-two-column-form {
+    display: flex;
+    gap: 20px;
+    padding: 4px 8px;
+}
+
+.erp-two-column-form .col-half {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* 資料瀏覽大清單面板 (擷取4 & 5.PNG) */
+.erp-browse-view {
+    flex: 1;
+    overflow: auto;
+    background: #FFFFFF;
+    border: 1px solid #7F9DB9;
+    margin: 4px;
+}
+
+/* ERP Window Status Bar */
+.erp-window-statusbar {
+    height: 20px;
+    min-height: 20px !important;
+    background-color: #ECE9D8;
+    border-top: 1px solid #94A6B8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    font-size: 11px;
+    color: #000000;
+    flex-shrink: 0 !important;
+}
+
+.erp-window-statusbar .status-cell {
+    border: 1px inset #FFFFFF;
+    padding: 1px 6px;
+    background-color: #ECE9D8;
+}
+
+/* Tree Structure for COPQ05 (1105擷取.PNG) */
+#copq05-order-grid {
+    color: #000000 !important;
+}
+#copq05-order-grid th {
+    color: #000000 !important;
+    background-color: #ECE9D8;
+    font-weight: bold;
+}
+#copq05-order-grid td {
+    color: #000000 !important;
+}
+#copq05-order-grid tr:nth-child(odd) td {
+    background-color: #FFFFFF;
+    color: #000000 !important;
+}
+#copq05-order-grid tr:nth-child(even) td {
+    background-color: #F0F6F0;
+    color: #000000 !important;
+}
+#copq05-order-grid tr:hover td {
+    background-color: #E2EFE7;
+    color: #000000 !important;
+}
+#copq05-order-grid tr.selected td {
+    background-color: #CCE8FF !important;
+    color: #000000 !important;
+}
+#copq05-order-grid tr.selected td:nth-child(2) {
+    color: #003399 !important;
+    font-weight: bold;
+}
+
+#copq05-tree-view {
+    color: #000000 !important;
+    background: #FFFFFF;
+}
+#copq05-tree-view .tree-node-row,
+#copq05-tree-view .tree-item-title {
+    color: #000000 !important;
+}
+#copq05-tree-view .tree-node-row:hover,
+#copq05-tree-view .tree-item-title:hover {
+    background-color: #EBF4FC !important;
+    color: #000000 !important;
+}
+#copq05-tree-view .tree-node-row.selected,
+#copq05-tree-view .tree-item-title.active-tree-node {
+    background-color: #CCE8FF !important;
+    color: #000000 !important;
+    font-weight: bold;
+}
+
+.order-tree-wrapper {
+    display: flex;
+    height: 100%;
+    gap: 4px;
+}
+
+.order-tree-left {
+    width: 320px;
+    border: 1px solid #7F9DB9;
+    background: #FFFFFF;
+    overflow: auto;
+}
+
+.order-tree-right {
+    flex: 1;
+    border: 1px solid #7F9DB9;
+    background: #FFFFFF;
+    padding: 6px;
+    overflow: auto;
+    font-family: "PMingLiU", "MingLiU", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.order-tree-node {
+    margin-left: 16px;
+}
+
+.order-tree-row {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 2px;
+}
+
+.order-tree-row:hover {
+    background-color: #E8F4FF;
+}
+
+.order-tree-row.selected {
+    background-color: #316AC5;
+    color: #FFFFFF;
+}
+
+/* ========================================================
+   ERP UNIVERSAL LOOKUP DIALOG (開窗查詢挑選器)
+   ======================================================== */
+.erp-lookup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+}
+
+.erp-lookup-window {
+    width: 620px;
+    max-width: 95vw;
+    height: 480px;
+    max-height: 90vh;
+    background: #ECE9D8;
+    border: 1px solid #707070;
+    box-shadow: 2px 2px 12px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.erp-lookup-titlebar {
+    height: 25px;
+    background: linear-gradient(to bottom, #7292C2 0%, #4D74A9 100%);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: normal;
+    user-select: none;
+}
+
+.erp-lookup-titlebar .win-title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.erp-lookup-topbar {
+    padding: 3px 6px;
+    background: #ECE9D8;
+    border-bottom: 1px solid #C0BCB0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.erp-lookup-nav-btn {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 3px;
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    border-radius: 1px;
+    cursor: pointer;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 1px 1px 0 #FFF, inset -1px -1px 0 #808080;
+}
+
+.erp-lookup-nav-btn:hover {
+    background: #FFF3B8;
+}
+
+.erp-lookup-topbar select {
+    height: 20px;
+    border: 1px solid #7F9DB9;
+    background: #FFFFFF;
+    font-size: 12px;
+    padding: 0 2px;
+}
+
+.erp-lookup-topbar input {
+    height: 20px;
+    border: 1px solid #7F9DB9;
+    background: #FFFFFF;
+    font-size: 12px;
+    padding: 1px 4px;
+    flex: 1;
+}
+
+.erp-lookup-grid-container {
+    flex: 1;
+    overflow: auto;
+    background: #FFFFF8;
+    border: 1px solid #7F9DB9;
+    margin: 2px 4px;
+}
+
+.erp-lookup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: inherit;
+    table-layout: fixed;
+}
+
+.erp-lookup-table th {
+    background: #5B7DB1;
+    color: #FFFFFF;
+    border: 1px solid #486896;
+    padding: 3px 6px;
+    font-weight: normal;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+/* 1:1 Image 5, 6, 7, 8 - 欄位1是經典藍紫底白字，欄位2+是淺灰綠底深字 */
+.erp-lookup-table th:nth-child(1) {
+    background: #BAC7BF !important;
+    border: 1px solid #9DAA9F !important;
+}
+.erp-lookup-table th:nth-child(2) {
+    background: #5872CB !important;
+    color: #FFFFFF !important;
+    font-weight: bold !important;
+    border: 1px solid #435EBE !important;
+}
+.erp-lookup-table th:nth-child(n+3) {
+    background: #E4EDE7 !important;
+    color: #222222 !important;
+    font-weight: normal !important;
+    border: 1px solid #BCCBC2 !important;
+}
+
+.erp-lookup-table td {
+    border: 1px solid #D4D0C8;
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    height: 20px;
+}
+
+.erp-lookup-table tr.even-row td {
+    background-color: #E2F2E9;
+}
+
+.erp-lookup-table tr.odd-row td {
+    background-color: #FFFFFF;
+}
+
+.erp-lookup-table tr:hover td {
+    background-color: #D1E5F8;
+}
+
+.erp-lookup-table tr.selected td {
+    background-color: #A4C5E8 !important;
+    color: #000000;
+}
+
+.erp-lookup-statusbar {
+    height: 24px;
+    background: #ECE9D8;
+    border-top: 1px solid #D4D0C8;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 12px;
+}
+
+.lookup-stat-box {
+    display: inline-block;
+    min-width: 45px;
+    height: 18px;
+    line-height: 18px;
+    padding: 0 6px;
+    background: #FFFFFF;
+    border: 1px solid #7F9DB9;
+    text-align: center;
+    margin: 0 10px 0 4px;
+}
+
+.erp-lookup-btnbar {
+    padding: 4px;
+    background: #ECE9D8;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    border-top: 1px solid #E0DCD0;
+}
+
+.lookup-act-btn {
+    padding: 2px 18px;
+    height: 24px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: inset 1px 1px 0 #FFF, inset -1px -1px 0 #808080;
+}
+
+.lookup-act-btn:hover {
+    background: #FFF3B8;
+    border-color: #D6A83E;
+}
+
+.lookup-act-btn:active {
+    box-shadow: inset -1px -1px 0 #FFF, inset 1px 1px 0 #808080;
+}
+
+/* ========================================================
+   APPROVAL / CONFIRM STAMPS
+   ======================================================== */
+.doc-stamp {
+    position: absolute;
+    right: 20px;
+    top: 36px;
+    padding: 3px 12px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    border: 2px solid;
+    border-radius: 4px;
+    transform: rotate(-4deg);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.doc-stamp.confirmed {
+    color: #C00000;
+    border-color: #C00000;
+    background: rgba(255, 235, 235, 0.85);
+}
+
+.doc-stamp.unconfirmed {
+    color: #707070;
+    border-color: #909090;
+    background: rgba(240, 240, 240, 0.85);
+}
+
+/* ========================================================
+   BROWSE / READONLY FORM & GRID LOCKING (瀏覽模式防護)
+   ======================================================== */
+/* 表單單頭、基本資料面板輸入元件鎖定 */
+.erp-form-readonly input:not(.erp-datagrid-container input):not(#invi02-wh-container input),
+.erp-form-readonly select,
+.erp-form-readonly textarea {
+    pointer-events: none !important;
+    background: #ECE9D8 !important;
+    color: #000000 !important;
+    cursor: default !important;
+    user-select: none !important;
+}
+
+.erp-form-readonly button.lookup-icon-btn,
+.erp-form-readonly button.grid-date-btn {
+    pointer-events: none !important;
+    opacity: 0.45 !important;
+    cursor: default !important;
+}
+
+.erp-form-readonly input[type="checkbox"],
+.erp-form-readonly input[type="radio"] {
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+/* ========================================================
+   中間看品號區域 (DataGrid)：
+   鎖定看資料時長度充足，可自由左右、上下移動滑動查看，但嚴格禁止修改
+   ======================================================== */
+.erp-datagrid-container,
+.erp-form-readonly .erp-datagrid-container,
+.erp-datagrid-container.grid-readonly,
+#invi02-wh-container.grid-readonly {
+    pointer-events: auto !important; /* 確保滾輪、滾動條拖曳、移動瀏覽 100% 正常運作 */
+    overflow: auto !important;
+    user-select: text !important;
+}
+
+/* 經典 Windows ERP 舒適滾動條，讓使用者左右滑動看長品號更順暢 */
+.erp-datagrid-container::-webkit-scrollbar,
+#invi02-wh-container::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+.erp-datagrid-container::-webkit-scrollbar-track,
+#invi02-wh-container::-webkit-scrollbar-track {
+    background: #ECE9D8;
+    border: 1px solid #D4D0C8;
+}
+.erp-datagrid-container::-webkit-scrollbar-thumb,
+#invi02-wh-container::-webkit-scrollbar-thumb {
+    background: #C0BFB7;
+    border: 1px solid #7F9DB9;
+}
+.erp-datagrid-container::-webkit-scrollbar-thumb:hover,
+#invi02-wh-container::-webkit-scrollbar-thumb:hover {
+    background: #A09F97;
+}
+
+/* 瀏覽模式下單身表格保持標準清爽交替底色 (白 / 薄荷綠)，高對比不反白 */
+.erp-form-readonly .erp-datagrid-container tr:nth-child(odd) td,
+.erp-datagrid-container.grid-readonly tr:nth-child(odd) td {
+    background-color: #FFFFFF !important;
+}
+
+.erp-form-readonly .erp-datagrid-container tr:nth-child(even) td,
+.erp-datagrid-container.grid-readonly tr:nth-child(even) td {
+    background-color: #EBF6EF !important;
+}
+
+.erp-form-readonly .erp-datagrid-container tr:hover td,
+.erp-datagrid-container.grid-readonly tr:hover td {
+    background-color: #E2EFE7 !important;
+}
+
+.erp-form-readonly .erp-datagrid-container tr.active-row td,
+.erp-datagrid-container.grid-readonly tr.active-row td {
+    background-color: #CCE8FF !important; /* 點選選取列淺藍高亮，移動看資料時一目了然 */
+}
+
+/* 單身表格內輸入框：可點選、選取複製文字、左右光標移動檢視長品名規格，但禁止輸入修改 */
+.erp-form-readonly .erp-datagrid-container input,
+.erp-datagrid-container.grid-readonly input,
+#invi02-wh-container.grid-readonly input {
+    pointer-events: auto !important;
+    background: transparent !important;
+    color: #000000 !important;
+    cursor: default !important;
+    user-select: text !important;
+    caret-color: transparent !important; /* 隱藏游標閃爍，確立唯讀瀏覽體驗 */
+}
+
+/* 瀏覽模式下單身開窗鈕、日期鈕與刪除列鈕鎖定禁用 */
+.erp-form-readonly .erp-datagrid-container button,
+.erp-datagrid-container.grid-readonly button,
+#invi02-wh-container.grid-readonly button {
+    pointer-events: none !important;
+    opacity: 0.3 !important;
+    cursor: default !important;
+}
+
+/* ========================================================
+   ERP Calendar Date Picker (1:1 Classic Windows UI)
+   ======================================================== */
+.erp-calendar-popup {
+    position: absolute;
+    width: 236px;
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.35);
+    z-index: 999999;
+    font-family: inherit;
+    font-size: 12px;
+    user-select: none;
+    box-sizing: border-box;
+    padding: 2px;
+}
+
+.erp-cal-titlebar {
+    background: linear-gradient(to right, #0A246A, #A6CAF0);
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 11px;
+    padding: 2px 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 20px;
+    box-sizing: border-box;
+    margin-bottom: 2px;
+}
+
+.erp-cal-close-btn {
+    width: 15px;
+    height: 15px;
+    background: #ECE9D8;
+    border: 1px outset #FFFFFF;
+    color: #000000;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 13px;
+    padding: 0;
+    cursor: pointer;
+    text-align: center;
+}
+.erp-cal-close-btn:hover {
+    background: #E81123;
+    color: #FFFFFF;
+}
+
+.erp-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, #FFFFFF 0%, #E4E4E4 100%);
+    border: 1px solid #B0B0B0;
+    padding: 2px 3px;
+    height: 25px;
+    box-sizing: border-box;
+}
+
+.erp-cal-header .cal-nav-btn {
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: bold;
+    width: 20px;
+    height: 19px;
+    padding: 0;
+    line-height: 17px;
+    color: #000;
+}
+.erp-cal-header .cal-nav-btn:hover {
+    background: #BEE6FD;
+}
+
+.erp-cal-header .cal-title-container {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+.erp-cal-header select {
+    font-size: 11px;
+    padding: 0 1px;
+    height: 19px;
+    border: 1px solid #7F9DB9;
+    background: #FFF;
+}
+
+.erp-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    background: #D4D0C8;
+    border: 1px solid #B0B0B0;
+    border-top: none;
+    padding: 3px 0;
+    font-weight: bold;
+    font-size: 11px;
+}
+.erp-cal-weekdays .cal-sun { color: #C00000; }
+.erp-cal-weekdays .cal-sat { color: #000099; }
+
+.erp-cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #FFFFFF;
+    border: 1px solid #B0B0B0;
+    border-top: none;
+    padding: 1px;
+    gap: 1px;
+}
+
+.erp-cal-day {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    border: 1px solid transparent;
+}
+.erp-cal-day:hover {
+    background: #BEE6FD;
+    border: 1px solid #3399FF;
+}
+.erp-cal-day.other-month {
+    color: #A0A0A0;
+}
+.erp-cal-day.cal-sun {
+    color: #C00000;
+}
+.erp-cal-day.is-today {
+    border: 1px solid #C00000;
+    font-weight: bold;
+}
+.erp-cal-day.is-selected {
+    background: #316AC5 !important;
+    color: #FFFFFF !important;
+    font-weight: bold;
+}
+
+.erp-cal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    padding: 4px 1px 1px 1px;
+}
+
+.erp-cal-footer .cal-btn-action {
+    background: #ECE9D8;
+    border: 1px solid #7F9DB9;
+    font-size: 11px;
+    padding: 1px 8px;
+    cursor: pointer;
+    height: 20px;
+}
+.erp-cal-footer .cal-btn-action:hover {
+    background: #BEE6FD;
+}
+

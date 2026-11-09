@@ -1,0 +1,31 @@
+# Temporary, scratch & reference files
+/scratch/
+/參考資料/
+*.tmp
+*.bak
+
+# Sensitive or session files
+cookie.txt
+
+# Large video, compressed archives & raw camera photos
+*.mp4
+*.zip
+*.7z
+*.rar
+IMG*.jpg
+IMG*.jpeg
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Local configurations & logs
+config.local.php
+*.log
