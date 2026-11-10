@@ -2524,7 +2524,7 @@ Object.assign(window.Modules, {
                 if (rowCount > 0) isDirty = true;
             };
 
-            const grid = Modules.initDynamicGrid(winEl, 'copi08', false, calcTotals);
+            const grid = Modules.initDynamicGrid(winEl, 'copi08', true, calcTotals);
 
             const fillDelivery = (header, details = []) => {
                 currentDelivery = header;

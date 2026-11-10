@@ -734,7 +734,7 @@ fwrite($fp, <<<'JS'
                 statusMsg.textContent = `單身資料筆數: ${rowCount}`;
             };
 
-            const grid = Modules.initDynamicGrid(winEl, 'copi08', false, calcTotals);
+            const grid = Modules.initDynamicGrid(winEl, 'copi08', true, calcTotals);
 
             const fillDelivery = (header, details = []) => {
                 fType.value = header.delivery_type || 'A231';

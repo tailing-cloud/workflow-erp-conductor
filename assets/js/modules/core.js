@@ -1134,6 +1134,25 @@ Object.assign(window.Modules, {
         const tbody = winEl.querySelector(`#${prefix}-grid-tbody`);
         if (!tbody) return null;
 
+        const whMap = {
+            'HUB': '在途倉',
+            'P001': '原料倉一',
+            'P002': '半成品倉一',
+            'P003': '成品倉一',
+            'P004': '不良品倉一',
+            'P005': '報廢倉一',
+            'P006': '借出暫存倉',
+            'P007': '借入暫存倉',
+            'P009': '事務品倉一',
+            'W01': '主倉庫',
+            'Y001': '原料倉二',
+            'Y002': '半成品倉二',
+            'Y003': '成品倉二',
+            'Y004': '不良品倉二',
+            'Y005': '報廢倉二',
+            'Y009': '事務品倉二'
+        };
+
         let isGridEditable = false;
         const gridContainer = tbody.closest('.erp-datagrid-container') || tbody.parentElement;
 
@@ -1147,7 +1166,7 @@ Object.assign(window.Modules, {
                 }
             }
             tbody.querySelectorAll('tr[data-row]').forEach(r => {
-                r.querySelectorAll('input:not(.grid-amount)').forEach(inp => {
+                r.querySelectorAll('input:not(.grid-amount):not(.erp-input-readonly)').forEach(inp => {
                     inp.readOnly = !isGridEditable;
                 });
                 r.querySelectorAll('button').forEach(btn => {
@@ -1174,6 +1193,7 @@ Object.assign(window.Modules, {
             const isPuri09 = (prefix === 'puri09');
             const isPuri05 = (prefix === 'puri05');
             const isCopi05 = (prefix === 'copi05');
+            const isCopi08 = (prefix === 'copi08');
 
             if (isPuri05) {
                 // 1:1 請購單建立作業 (PURI05 - 擷取9.PNG)
@@ -1225,6 +1245,42 @@ Object.assign(window.Modules, {
                         <button type="button" class="lookup-icon-btn" data-lookup-wh="${rowIdx}" title="挑選庫別">☖</button>
                     </td>
                 `;
+            } else if (isCopi08) {
+                // 1:1 銷貨單建立作業 (COPI08 - 擷取4.PNG)
+                // 標頭欄位: 📋 | 序號 | 業務品號 | 品號 | 品名 | 規格 | 庫別 | 庫別名稱 | 出貨數量 | 單位 | 單價 | 金額
+                const whVal = initialData?.warehouse || initialData?.wh || 'W01';
+                const whNameVal = initialData?.wh_name || initialData?.warehouse_name || whMap[whVal] || (whVal === 'W01' ? '主倉庫' : (whVal === 'P003' ? '成品倉一' : ''));
+                const qtyVal = (initialData?.delivery_qty !== undefined && initialData?.delivery_qty !== null && initialData?.delivery_qty !== '')
+                    ? initialData.delivery_qty
+                    : ((initialData?.qty !== undefined && initialData?.qty !== null && initialData?.qty !== '') ? initialData.qty : '');
+                const unitVal = initialData?.unit || '台';
+                const priceVal = (initialData?.unit_price !== undefined && initialData?.unit_price !== null && initialData?.unit_price !== '')
+                    ? initialData.unit_price
+                    : ((initialData?.price !== undefined && initialData?.price !== null && initialData?.price !== '') ? initialData.price : '');
+                const amtVal = initialData?.amount
+                    ? Math.round(initialData.amount).toLocaleString()
+                    : ((qtyVal !== '' && priceVal !== '') ? Math.round(parseFloat(qtyVal) * parseFloat(priceVal)).toLocaleString() : '');
+
+                tr.innerHTML = `
+                    <td style="text-align:center; width:22px; color:#003366; font-size:10px;" class="row-indicator">${rowIdx === 1 ? '▶' : ''}</td>
+                    <td style="text-align:center; background:#00CED1; font-weight:bold; width:38px;" class="row-line-no">${lineNo}</td>
+                    <td style="width:75px;"><input type="text" id="${prefix}-biz-item-${rowIdx}" value="${initialData?.biz_item || initialData?.biz_item_no || ''}"></td>
+                    <td style="display:flex; align-items:center; padding:0 1px; width:100px;">
+                        <input type="text" id="${prefix}-item-no-${rowIdx}" class="erp-input-yellow" style="flex:1;" value="${initialData?.item_no || ''}">
+                        <button type="button" class="lookup-icon-btn" data-lookup-row="${rowIdx}" title="挑選品號">🔍</button>
+                    </td>
+                    <td style="width:160px;"><input type="text" id="${prefix}-item-name-${rowIdx}" value="${initialData?.item_name || ''}"></td>
+                    <td style="width:120px;"><input type="text" id="${prefix}-item-spec-${rowIdx}" value="${initialData?.item_spec || ''}"></td>
+                    <td style="display:flex; align-items:center; padding:0 1px; width:70px;">
+                        <input type="text" id="${prefix}-wh-${rowIdx}" class="grid-wh erp-input-yellow" style="flex:1; text-align:center;" value="${whVal}">
+                        <button type="button" class="lookup-icon-btn" data-lookup-wh="${rowIdx}" title="挑選庫別">☖</button>
+                    </td>
+                    <td style="width:100px;"><input type="text" id="${prefix}-wh-name-${rowIdx}" class="erp-input-readonly" style="width:100%; text-align:center;" value="${whNameVal}" readonly></td>
+                    <td style="width:65px;"><input type="text" id="${prefix}-qty-${rowIdx}" class="grid-qty" style="text-align:right;" value="${qtyVal}"></td>
+                    <td style="width:40px;"><input type="text" id="${prefix}-unit-${rowIdx}" style="text-align:center;" value="${unitVal}"></td>
+                    <td style="width:75px;"><input type="text" id="${prefix}-price-${rowIdx}" class="grid-price" style="text-align:right;" value="${priceVal}"></td>
+                    <td style="width:85px;"><input type="text" id="${prefix}-amount-${rowIdx}" class="grid-amount grid-last-cell erp-input-readonly" style="text-align:right;" value="${amtVal}" readonly></td>
+                `;
             } else {
                 tr.innerHTML = `
                     <td style="text-align:center; width:22px; color:#003366; font-size:10px;" class="row-indicator">${rowIdx === 1 ? '▶' : ''}</td>
@@ -1265,7 +1321,7 @@ Object.assign(window.Modules, {
             }
 
             if (!isGridEditable) {
-                tr.querySelectorAll('input:not(.grid-amount)').forEach(inp => { inp.readOnly = true; });
+                tr.querySelectorAll('input:not(.grid-amount):not(.erp-input-readonly)').forEach(inp => { inp.readOnly = true; });
                 tr.querySelectorAll('button').forEach(btn => { btn.disabled = true; });
             }
 
@@ -1353,7 +1409,11 @@ Object.assign(window.Modules, {
                         const buInp = tr.querySelector(`#${prefix}-bill-unit-${rowIdx}`);
                         if (buInp) buInp.value = item.unit || '';
                         const whInp = tr.querySelector(`#${prefix}-wh-${rowIdx}`);
-                        if (whInp) whInp.value = item.main_warehouse || '';
+                        if (whInp) {
+                            whInp.value = item.main_warehouse || 'W01';
+                            const whNameInp = tr.querySelector(`#${prefix}-wh-name-${rowIdx}`);
+                            if (whNameInp) whNameInp.value = whMap[whInp.value] || (whInp.value === 'W01' ? '主倉庫' : '成品倉一');
+                        }
                         const pInp = tr.querySelector(`#${prefix}-price-${rowIdx}`);
                         if (!pInp.value) pInp.value = item.std_price || item.retail_price || 0;
                         const qInp = tr.querySelector(`#${prefix}-qty-${rowIdx}`);
@@ -1371,14 +1431,22 @@ Object.assign(window.Modules, {
             // Lookup warehouse button
             const btnWhLookup = tr.querySelector(`button[data-lookup-wh="${rowIdx}"]`);
             const whInput = tr.querySelector(`#${prefix}-wh-${rowIdx}`);
+            const whNameInput = tr.querySelector(`#${prefix}-wh-name-${rowIdx}`);
             const openWhLookup = () => {
                 if (!isGridEditable) return;
                 Modules.openLookup('warehouse', (w) => {
                     if (whInput) whInput.value = w.wh_no;
+                    if (whNameInput) whNameInput.value = w.wh_name || whMap[w.wh_no] || '';
+                    if (typeof onCalculateTotals === 'function') onCalculateTotals();
                 });
             };
             if (btnWhLookup) btnWhLookup.addEventListener('click', openWhLookup);
-            if (whInput) whInput.addEventListener('dblclick', openWhLookup);
+            if (whInput) {
+                whInput.addEventListener('dblclick', openWhLookup);
+                whInput.addEventListener('input', () => {
+                    if (whNameInput) whNameInput.value = whMap[whInput.value.trim()] || '';
+                });
+            }
 
             // Double click or button click on date inputs -> open calendar picker
             tr.querySelectorAll('.grid-date, .grid-eff-date, .grid-exp-date').forEach(dateInp => {
@@ -1397,6 +1465,22 @@ Object.assign(window.Modules, {
             });
 
             // Tab on last cell -> generate next row
+            if (isCopi08 && priceInp) {
+                priceInp.addEventListener('keydown', (e) => {
+                    if (!isGridEditable) return;
+                    if (e.key === 'Tab' && !e.shiftKey) {
+                        const allRows = tbody.querySelectorAll('tr[data-row]');
+                        const isLastRow = (tr === allRows[allRows.length - 1]);
+                        if (isLastRow) {
+                            e.preventDefault();
+                            const newRow = appendNewRow();
+                            const nextInp = newRow.querySelector(`#${prefix}-item-no-${newRow.getAttribute('data-row')}`);
+                            if (nextInp) nextInp.focus();
+                        }
+                    }
+                });
+            }
+
             const lastCell = tr.querySelector('.grid-last-cell');
             if (lastCell) {
                 lastCell.addEventListener('keydown', (e) => {
@@ -1520,6 +1604,7 @@ Object.assign(window.Modules, {
                 const rows = tbody.querySelectorAll('tr[data-row]');
                 const list = [];
                 const isCopi05 = (prefix === 'copi05');
+            const isCopi08 = (prefix === 'copi08');
                 rows.forEach((r, idx) => {
                     const rowIdx = r.getAttribute('data-row');
                     const itemNo = winEl.querySelector(`#${prefix}-item-no-${rowIdx}`)?.value.trim() || '';
@@ -1546,6 +1631,11 @@ Object.assign(window.Modules, {
                             price: parseFloat(winEl.querySelector(`#${prefix}-price-${rowIdx}`)?.value) || 0,
                             amount: parseFloat((winEl.querySelector(`#${prefix}-amount-${rowIdx}`)?.value || '').replace(/,/g, '')) || 0,
                             date: winEl.querySelector(`#${prefix}-date-${rowIdx}`)?.value.trim() || Modules.getTodayStr(),
+                            biz_item_no: winEl.querySelector(`#${prefix}-biz-item-${rowIdx}`)?.value.trim() || '',
+                            delivery_qty: qty,
+                            unit_price: parseFloat(winEl.querySelector(`#${prefix}-price-${rowIdx}`)?.value) || 0,
+                            wh: winEl.querySelector(`#${prefix}-wh-${rowIdx}`)?.value.trim() || '',
+                            wh_name: winEl.querySelector(`#${prefix}-wh-name-${rowIdx}`)?.value.trim() || '',
                             warehouse: winEl.querySelector(`#${prefix}-wh-${rowIdx}`)?.value.trim() || ''
                         };
                         if (isCopi05) {
