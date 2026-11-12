@@ -1164,6 +1164,7 @@ Object.assign(window.Modules, {
                     <div style="display:flex; align-items:center; margin-top:10px;">
                         <label style="width:80px; text-align:right; margin-right:4px;">請購人員</label>
                         <input type="text" id="puri06-req-user" style="width:90px;" value="">
+                        <button type="button" class="lookup-icon-btn" id="puri06-lookup-req-user" style="margin-left:2px;" title="挑選人員">👤</button>
                         <span id="puri06-req-user-desc" style="margin-left:4px;"></span>
                     </div>
                 </div>
@@ -1499,8 +1500,15 @@ Object.assign(window.Modules, {
                 fReqRemark.value = d.req_remark || '';
                 fMinReplenish.value = Math.round(d.min_replenish || 0);
                 fProjectNo.value = d.project_no || '';
-                fReqUser.value = d.req_user || '';
+                fReqUser.value = d.req_user || d.header_req_user || '';
                 fReqUserDesc.textContent = d.req_user_name || '';
+                if (fReqUser.value && !fReqUserDesc.textContent) {
+                    ERP_API.get('get_employee', { emp_no: fReqUser.value }).then(eRes => {
+                        if (eRes.success && eRes.employee) {
+                            fReqUserDesc.textContent = eRes.employee.emp_name || '';
+                        }
+                    });
+                }
 
                 fBuyer.value = d.buyer || '';
                 if (fBuyerDesc) fBuyerDesc.textContent = d.buyer_name || '';
@@ -1747,6 +1755,13 @@ Object.assign(window.Modules, {
                     isDirty = false;
                     Modules.setFormMode(winEl, null, 'browse', statusMsg, fullReqNo);
                     Modules.toast(`請購明細 [${fullReqNo} - ${payload.line_no}] 儲存成功！`, 'success');
+                    if (payload.req_user) {
+                        ERP_API.get('get_employee', { emp_no: payload.req_user }).then(eRes => {
+                            if (eRes.success && eRes.employee) {
+                                fReqUserDesc.textContent = eRes.employee.emp_name || '';
+                            }
+                        });
+                    }
                     return true;
                 } else {
                     Modules.toast('儲存失敗: ' + (res.error || '不明錯誤'), 'error');
@@ -1849,6 +1864,32 @@ Object.assign(window.Modules, {
                     calcAmounts();
                     isDirty = true;
                 });
+            });
+
+            winEl.querySelector('#puri06-lookup-req-user')?.addEventListener('click', () => {
+                Modules.openLookup('personnel', (p) => {
+                    fReqUser.value = p.emp_no || p.code || '';
+                    fReqUserDesc.textContent = p.emp_name || p.name || '';
+                    isDirty = true;
+                });
+            });
+
+            fReqUser?.addEventListener('dblclick', () => {
+                winEl.querySelector('#puri06-lookup-req-user')?.click();
+            });
+
+            fReqUser?.addEventListener('blur', async () => {
+                const uNo = fReqUser.value.trim();
+                if (uNo) {
+                    const res = await ERP_API.get('get_employee', { emp_no: uNo });
+                    if (res.success && res.employee) {
+                        fReqUserDesc.textContent = res.employee.emp_name || '';
+                    } else {
+                        fReqUserDesc.textContent = '';
+                    }
+                } else {
+                    fReqUserDesc.textContent = '';
+                }
             });
 
             winEl.querySelector('#puri06-lookup-buyer').addEventListener('click', () => {
@@ -3707,8 +3748,8 @@ Object.assign(window.Modules, {
             const grid = Modules.initDynamicGrid(winEl, 'puri09', true, calcTotals);
 
             const fillReceipt = (header, details = []) => {
-                fType.value = header.gr_type || header.receipt_type || '';
-                fTypeDesc.textContent = (header.gr_type || header.receipt_type) === 'C341' ? '進貨單' : '';
+                fType.value = header.gr_type || header.receipt_type || 'C341';
+                fTypeDesc.textContent = (fType.value === 'C341') ? '進貨單' : '';
                 fDocDate.value = header.doc_date || header.receipt_date || header.gr_date || Modules.getTodayStr();
                 fRcvDate.value = header.receipt_date || header.gr_date || Modules.getTodayStr();
                 fNo.value = header.gr_no || header.receipt_no || '';
@@ -4214,8 +4255,11 @@ Object.assign(window.Modules, {
                 if (res.success) {
                     currentDocStatus = '已確認';
                     fConfirmUser.value = App.currentUser?.username || '';
+                    Modules.setDocStamp(winEl, '已確認');
                     Modules.updateAuditButtons(winEl, true, 'puri09');
                     Modules.toast('進貨單確認完成！', 'success');
+                } else {
+                    Modules.toast('確認失敗: ' + (res.error || '不明錯誤'), 'error');
                 }
             });
 
@@ -4228,8 +4272,11 @@ Object.assign(window.Modules, {
                 if (res.success) {
                     currentDocStatus = '未確認';
                     fConfirmUser.value = '';
+                    Modules.setDocStamp(winEl, '未確認');
                     Modules.updateAuditButtons(winEl, false, 'puri09');
                     Modules.toast('進貨單已取消確認！', 'info');
+                } else {
+                    Modules.toast('取消確認失敗: ' + (res.error || '不明錯誤'), 'error');
                 }
             });
 
@@ -4534,15 +4581,15 @@ Object.assign(window.Modules, {
                 }).join('');
 
                 orderTbody.querySelectorAll('.copq05-grid-row').forEach(tr => {
-                    tr.addEventListener('click', () => {
+                    tr.addEventListener('click', async () => {
                         const idx = parseInt(tr.getAttribute('data-idx'), 10);
-                        selectOrderRow(list[idx], tr);
+                        await selectOrderRow(list[idx], tr);
                     });
                 });
             };
 
             // 選取某筆訂單項目並展開樹狀圖
-            const selectOrderRow = (rowItem, targetTr = null) => {
+            const selectOrderRow = async (rowItem, targetTr = null) => {
                 if (!rowItem) return;
                 activeOrderNo = rowItem.order_no;
                 currentSelectedRow = rowItem;
@@ -4576,11 +4623,28 @@ Object.assign(window.Modules, {
                     if (docNumEl) docNumEl.style.color = '#003399';
                 }
 
+                // 若當前載入的樹狀結構非此訂單，向後端取得該訂單之全鏈路關聯單據
+                if (!currentData.order || currentData.order.order_no !== rowItem.order_no) {
+                    treeBox.innerHTML = `<div style="color:#888; text-align:center; padding:60px 10px;">正在加載訂單 [${rowItem.order_no}] 樹狀關聯結構...</div>`;
+                    try {
+                        const res = await ERP_API.get('order_tree_query', { order_no: rowItem.order_no });
+                        if (res.success && res.data) {
+                            currentData.order = res.data.order;
+                            currentData.deliveries = res.data.deliveries;
+                            currentData.requisitions = res.data.requisitions;
+                            currentData.pos = res.data.pos;
+                            currentData.receipts = res.data.receipts;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch tree for order', rowItem.order_no, e);
+                    }
+                }
+
                 renderTreeStructure(rowItem);
             };
 
-            winEl.querySelector('#copq05-btn-expand-sel').addEventListener('click', () => {
-                if (currentSelectedRow) selectOrderRow(currentSelectedRow);
+            winEl.querySelector('#copq05-btn-expand-sel').addEventListener('click', async () => {
+                if (currentSelectedRow) await selectOrderRow(currentSelectedRow);
             });
 
             // 轉 EXCEL

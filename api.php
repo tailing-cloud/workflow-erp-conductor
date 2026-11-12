@@ -1319,8 +1319,8 @@ try {
             // Insert Requisition Details
             $pdo->prepare("DELETE FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqNo, $uname]);
             $stmtRD = $pdo->prepare("INSERT INTO `erp_requisition_details`
-                (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`, `pur_qty`, `pur_unit`, `pur_price`, `pur_amount`, `pricing_qty`, `pricing_unit`, `created_by`)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)");
+                (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`, `pur_qty`, `pur_unit`, `pur_price`, `pur_amount`, `pricing_qty`, `pricing_unit`, `req_user`, `created_by`)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             foreach ($orderItems as $idx => $it) {
                 $itemStmt = $pdo->prepare("SELECT `std_purchase_price` FROM `erp_items` WHERE `item_no` = ? AND `created_by` = ?");
@@ -1346,6 +1346,7 @@ try {
                     $lineAmt,
                     $it['order_qty'],
                     $it['unit'] ?: '台',
+                    $reqUser,
                     $uname
                 ]);
             }
@@ -1517,13 +1518,25 @@ try {
         case 'get_puri06_list':
             $curUser = requireAuth();
             $uname = $curUser['username'];
-            $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+            $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                 FROM `erp_requisition_details` d 
                 JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                 WHERE d.created_by = ? AND r.status = '已確認'
                 ORDER BY d.req_no DESC, d.line_no ASC");
             $stmt->execute([$uname]);
-            jsonResponse(['success' => true, 'data' => $stmt->fetchAll()]);
+            $rows = $stmt->fetchAll();
+            foreach ($rows as &$r) {
+                if (empty($r['req_user']) && !empty($r['header_req_user'])) {
+                    $r['req_user'] = $r['header_req_user'];
+                }
+                if (!empty($r['req_user'])) {
+                    $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+                    $eStmt->execute([$r['req_user']]);
+                    $eRow = $eStmt->fetch();
+                    $r['req_user_name'] = $eRow ? $eRow['emp_name'] : $r['req_user'];
+                }
+            }
+            jsonResponse(['success' => true, 'data' => $rows]);
             break;
 
         case 'get_puri06_detail':
@@ -1533,13 +1546,13 @@ try {
             $lineNo = trim($_GET['line_no'] ?? '0001');
             $id = (int)($_GET['id'] ?? 0);
             if ($id > 0) {
-                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                     WHERE d.id = ? AND d.created_by = ?");
                 $stmt->execute([$id, $uname]);
             } else {
-                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                     WHERE d.req_no = ? AND d.line_no = ? AND d.created_by = ?");
@@ -1547,6 +1560,15 @@ try {
             }
             $row = $stmt->fetch();
             if (!$row) jsonResponse(['success' => false, 'error' => '查無請購明細資料']);
+            if (empty($row['req_user']) && !empty($row['header_req_user'])) {
+                $row['req_user'] = $row['header_req_user'];
+            }
+            if (!empty($row['req_user'])) {
+                $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+                $eStmt->execute([$row['req_user']]);
+                $eRow = $eStmt->fetch();
+                $row['req_user_name'] = $eRow ? $eRow['emp_name'] : $row['req_user'];
+            }
             if (!empty($row['supplier_no'])) {
                 $sStmt = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? AND (`created_by` = ? OR `created_by` = 'B18') ORDER BY (`created_by` = ?) DESC LIMIT 1");
                 $sStmt->execute([$row['supplier_no'], $uname, $uname]);
@@ -1625,6 +1647,22 @@ try {
                 $buyer = $existing['buyer'];
             }
             if (empty($buyer)) $buyer = $uname;
+
+            $reqUser = trim($input['req_user'] ?? '');
+            if (!empty($reqUser)) {
+                $empCheck = $pdo->prepare("SELECT `emp_no`, `emp_name` FROM `erp_employees` WHERE `emp_no` = ? OR `emp_name` = ? LIMIT 1");
+                $empCheck->execute([$reqUser, $reqUser]);
+                $emp = $empCheck->fetch();
+                if ($emp) {
+                    $reqUser = $emp['emp_no'];
+                }
+            }
+            if (empty($reqUser) && $existing && !empty($existing['req_user'])) {
+                $reqUser = $existing['req_user'];
+            }
+            if (empty($reqUser)) {
+                $reqUser = $uname;
+            }
 
             if ($existing) {
                 // Update existing record
@@ -1724,7 +1762,7 @@ try {
                     $input['req_remark'] ?? $existing['req_remark'] ?? '',
                     (float)($input['min_replenish'] ?? $existing['min_replenish'] ?? 0),
                     $input['project_no'] ?? $existing['project_no'] ?? '',
-                    $input['req_user'] ?? $existing['req_user'] ?? '',
+                    $reqUser,
                     $existing['id'],
                     $uname
                 ]);
@@ -1786,7 +1824,7 @@ try {
                     $input['req_remark'] ?? '',
                     (float)($input['min_replenish'] ?? 0),
                     $input['project_no'] ?? '',
-                    $input['req_user'] ?? '',
+                    $reqUser,
                     $uname
                 ]);
             }
@@ -1802,17 +1840,21 @@ try {
                 $docDate,
                 $input['req_date'] ?? $docDate,
                 $input['req_dept'] ?? '0100 業務部',
-                $input['req_user'] ?? $uname,
+                $reqUser,
                 $reqQty,
                 $purAmt,
                 $uname
             ]);
 
-            // Sync total_qty and total_amount from sum of all details
+            // Sync total_qty, total_amount, and req_user
             $pdo->prepare("UPDATE `erp_requisitions` SET
+                `req_user` = ?,
                 `total_qty` = (SELECT IFNULL(SUM(req_qty), 0) FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?),
                 `total_amount` = (SELECT IFNULL(SUM(amount), 0) FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?)
-                WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqNo, $uname, $reqNo, $uname, $reqNo, $uname]);
+                WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqUser, $reqNo, $uname, $reqNo, $uname, $reqNo, $uname]);
+
+            // Sync all sibling details of this requisition to have the same req_user
+            $pdo->prepare("UPDATE `erp_requisition_details` SET `req_user` = ? WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqUser, $reqNo, $uname]);
 
             jsonResponse(['success' => true, 'req_no' => $reqNo, 'line_no' => $lineNo]);
             break;
@@ -1827,7 +1869,7 @@ try {
 
             $row = null;
             if ($dir === 'first') {
-                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                     WHERE d.created_by = ? AND r.status = '已確認'
@@ -1835,7 +1877,7 @@ try {
                 $stmt->execute([$uname]);
                 $row = $stmt->fetch();
             } elseif ($dir === 'last') {
-                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                     WHERE d.created_by = ? AND r.status = '已確認'
@@ -1862,7 +1904,7 @@ try {
                 }
             }
             if (!$row && $curId > 0) {
-                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
+                $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked, r.req_user as header_req_user 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
                     WHERE d.created_by = ? AND r.status = '已確認' AND d.id = ?");
@@ -1875,6 +1917,15 @@ try {
                     $sStmt->execute([$row['supplier_no'], $uname, $uname]);
                     $sRow = $sStmt->fetch();
                     $row['supplier_name'] = $sRow ? ($sRow['name_short'] ?: $sRow['full_name']) : '';
+                }
+                if (empty($row['req_user']) && !empty($row['header_req_user'])) {
+                    $row['req_user'] = $row['header_req_user'];
+                }
+                if (!empty($row['req_user'])) {
+                    $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+                    $eStmt->execute([$row['req_user']]);
+                    $eRow = $eStmt->fetch();
+                    $row['req_user_name'] = $eRow ? $eRow['emp_name'] : $row['req_user'];
                 }
                 if (!empty($row['buyer'])) {
                     $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
@@ -2040,7 +2091,7 @@ try {
                 }
 
                 // Mark requisition details as purchased
-                $pdo->prepare("UPDATE `erp_requisition_details` SET `is_purchased` = 1, `is_locked` = 1, `po_no` = ? WHERE `req_no` = ? AND `created_by` = ?")->execute([$poNo, $req['req_no'], $uname]);
+                $pdo->prepare("UPDATE `erp_requisition_details` SET `is_purchased` = 1, `is_locked` = 1, `po_no` = ?, `po_qty` = `req_qty` WHERE `req_no` = ? AND `created_by` = ?")->execute([$poNo, $req['req_no'], $uname]);
 
                 $genPoNos[] = $poNo;
             }
@@ -2217,7 +2268,13 @@ try {
             $uname = $curUser['username'];
             $stmt = $pdo->prepare("SELECT * FROM `erp_goods_receipts` WHERE `created_by` = ? ORDER BY `gr_no` DESC");
             $stmt->execute([$uname]);
-            jsonResponse(['success' => true, 'data' => $stmt->fetchAll()]);
+            $rows = $stmt->fetchAll();
+            foreach ($rows as &$r) {
+                if (empty($r['gr_type'])) $r['gr_type'] = 'C341';
+                $r['receipt_no'] = $r['gr_no'];
+                $r['receipt_date'] = $r['gr_date'] ?: $r['doc_date'];
+            }
+            jsonResponse(['success' => true, 'data' => $rows]);
             break;
 
         case 'get_goods_receipt':
@@ -2228,6 +2285,9 @@ try {
             $stmt->execute([$grNo, $uname]);
             $header = $stmt->fetch();
             if (!$header) jsonResponse(['success' => false, 'error' => '查無此進貨單']);
+            if (empty($header['gr_type'])) $header['gr_type'] = 'C341';
+            $header['receipt_no'] = $header['gr_no'];
+            $header['receipt_date'] = $header['gr_date'] ?: $header['doc_date'];
 
             $stmtD = $pdo->prepare("SELECT * FROM `erp_gr_details` WHERE `gr_no` = ? AND `created_by` = ? ORDER BY `line_no` ASC");
             $stmtD->execute([$grNo, $uname]);
@@ -2242,17 +2302,31 @@ try {
             $header = $input['header'] ?? [];
             $details = $input['details'] ?? [];
             $grNo = trim($header['gr_no'] ?? '');
-            $grType = trim($header['gr_type'] ?? 'C341');
+            $grType = !empty(trim($header['gr_type'] ?? '')) ? trim($header['gr_type']) : 'C341';
 
             if (empty($grNo)) {
                 $grNo = generateNextDocNo($pdo, 'goods_receipt', $header['receipt_date'] ?? date('Y/m/d'), $uname);
             }
 
+            $calcTotalQty = 0;
+            $calcTotalAmt = 0;
+            foreach ($details as $d) {
+                $q = (float)($d['gr_qty'] ?? $d['qty'] ?? 0);
+                $p = (float)($d['unit_price'] ?? $d['price'] ?? 0);
+                $a = (float)($d['amount'] ?? ($q * $p));
+                $calcTotalQty += $q;
+                $calcTotalAmt += $a;
+            }
+            $totQty = (!empty($header['total_qty']) && (float)$header['total_qty'] > 0) ? (float)$header['total_qty'] : $calcTotalQty;
+            $totAmt = (!empty($header['grand_total']) && (float)$header['grand_total'] > 0) ? (float)$header['grand_total'] : $calcTotalAmt;
+            $grAmt = (!empty($header['gr_amount']) && (float)$header['gr_amount'] > 0) ? (float)$header['gr_amount'] : $calcTotalAmt;
+            $taxAmt = (!empty($header['tax_amount']) && (float)$header['tax_amount'] > 0) ? (float)$header['tax_amount'] : round($totAmt * 0.05 / 1.05, 2);
+
             $stmtH = $pdo->prepare("INSERT INTO `erp_goods_receipts`
                 (`gr_no`, `gr_type`, `doc_date`, `gr_date`, `supplier_no`, `supplier_name`, `factory`, `currency`, `exchange_rate`, `po_no`, `total_qty`, `gr_amount`, `tax_amount`, `grand_total`, `status`, `created_by`)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
-                `doc_date`=VALUES(`doc_date`), `gr_date`=VALUES(`gr_date`), `total_qty`=VALUES(`total_qty`), `grand_total`=VALUES(`grand_total`), `status`=VALUES(`status`), `created_by`=VALUES(`created_by`)");
+                `gr_type`=VALUES(`gr_type`), `doc_date`=VALUES(`doc_date`), `gr_date`=VALUES(`gr_date`), `total_qty`=VALUES(`total_qty`), `gr_amount`=VALUES(`gr_amount`), `tax_amount`=VALUES(`tax_amount`), `grand_total`=VALUES(`grand_total`), `status`=VALUES(`status`), `confirm_user`=VALUES(`confirm_user`), `created_by`=VALUES(`created_by`)");
 
             $stmtH->execute([
                 $grNo,
@@ -2265,10 +2339,10 @@ try {
                 $header['currency'] ?? 'NTD',
                 $header['exchange_rate'] ?? 1.0,
                 $header['po_no'] ?? '',
-                $header['total_qty'] ?? 0,
-                $header['gr_amount'] ?? 0,
-                $header['tax_amount'] ?? 0,
-                $header['grand_total'] ?? 0,
+                $totQty,
+                $grAmt,
+                $taxAmt,
+                $totAmt,
                 $header['status'] ?? '未確認',
                 $uname
             ]);
@@ -2300,10 +2374,24 @@ try {
                     $uname
                 ]);
 
-                // Update PO received_qty if PO exists
-                if (!empty($header['po_no'])) {
-                    $pdo->prepare("UPDATE `erp_po_details` SET `received_qty` = `received_qty` + ? WHERE `po_no` = ? AND `item_no` = ? AND `created_by` = ?")
-                        ->execute([$qty, $header['po_no'], $d['item_no'], $uname]);
+                // 入庫增加品號現有庫存
+                if (!empty($d['item_no']) && $qty > 0) {
+                    $pdo->prepare("UPDATE `erp_items` SET `stock_qty` = `stock_qty` + ? WHERE `item_no` = ? AND `created_by` = ?")
+                        ->execute([$qty, $d['item_no'], $uname]);
+                }
+            }
+
+            // 精確更新採購單已交量 (依進貨明細重算，避免多次儲存重複累加)
+            if (!empty($header['po_no'])) {
+                foreach ($details as $d) {
+                    if (empty($d['item_no'])) continue;
+                    $sumStmt = $pdo->prepare("SELECT COALESCE(SUM(gd.gr_qty), 0) FROM `erp_gr_details` gd 
+                        JOIN `erp_goods_receipts` g ON gd.`gr_no` = g.`gr_no` AND gd.`created_by` = g.`created_by` 
+                        WHERE g.`po_no` = ? AND gd.`item_no` = ? AND gd.`created_by` = ?");
+                    $sumStmt->execute([$header['po_no'], $d['item_no'], $uname]);
+                    $totReceived = (float)$sumStmt->fetchColumn();
+                    $pdo->prepare("UPDATE `erp_po_details` SET `received_qty` = ? WHERE `po_no` = ? AND `item_no` = ? AND `created_by` = ?")
+                        ->execute([$totReceived, $header['po_no'], $d['item_no'], $uname]);
                 }
             }
 
@@ -2401,6 +2489,17 @@ try {
                 ON DUPLICATE KEY UPDATE
                 `doc_date`=VALUES(`doc_date`), `delivery_date`=VALUES(`delivery_date`), `customer_no`=VALUES(`customer_no`), `customer_name`=VALUES(`customer_name`), `total_qty`=VALUES(`total_qty`), `grand_total`=VALUES(`grand_total`), `status`=VALUES(`status`), `created_by`=VALUES(`created_by`)");
 
+            $calcTotalQty = 0;
+            $calcTotalAmt = 0;
+            foreach ($details as $d) {
+                $calcTotalQty += (float)($d['delivery_qty'] ?? $d['qty'] ?? 0);
+                $calcTotalAmt += (float)($d['amount'] ?? 0);
+            }
+            $totQty = (!empty($header['total_qty']) && (float)$header['total_qty'] > 0) ? (float)$header['total_qty'] : $calcTotalQty;
+            $totAmt = (!empty($header['grand_total']) && (float)$header['grand_total'] > 0) ? (float)$header['grand_total'] : $calcTotalAmt;
+            $delivAmt = (!empty($header['delivery_amount']) && (float)$header['delivery_amount'] > 0) ? (float)$header['delivery_amount'] : $calcTotalAmt;
+            $taxAmt = (!empty($header['tax_amount']) && (float)$header['tax_amount'] > 0) ? (float)$header['tax_amount'] : round($totAmt * 0.05, 2);
+
             $stmtH->execute([
                 $delivNo,
                 $delivType,
@@ -2415,10 +2514,10 @@ try {
                 isset($header['gen_income_entry']) ? (int)$header['gen_income_entry'] : 1,
                 isset($header['gen_cost_entry']) ? (int)$header['gen_cost_entry'] : 1,
                 $header['confirm_user'] ?? $uname,
-                $header['total_qty'] ?? 0,
-                $header['delivery_amount'] ?? 0,
-                $header['tax_amount'] ?? 0,
-                $header['grand_total'] ?? 0,
+                $totQty,
+                $delivAmt,
+                $taxAmt,
+                $totAmt,
                 $header['status'] ?? '已確認',
                 $uname
             ]);
@@ -2652,6 +2751,7 @@ try {
                         $uname
                     ]);
                 }
+                $pdo->prepare("UPDATE `erp_requisition_details` SET `is_purchased` = 1, `is_locked` = 1, `po_no` = ?, `po_qty` = `req_qty` WHERE `req_no` = ? AND `created_by` = ?")->execute([$poNo, $req['req_no'], $uname]);
                 $genPoNos[] = $poNo;
             }
 
@@ -2691,9 +2791,12 @@ try {
                     LEFT JOIN `erp_order_details` d ON o.`order_no` = d.`order_no` AND d.`created_by` = o.`created_by`
                     WHERE o.`created_by` = ? ";
             $params = [$uname];
+            $cleanOrderNo = '';
             if (!empty($orderNo)) {
-                $sql .= " AND o.`order_no` LIKE ? ";
+                $cleanOrderNo = preg_replace('/^[A-Za-z0-9]+-/', '', $orderNo);
+                $sql .= " AND (o.`order_no` LIKE ? OR o.`order_no` LIKE ?) ";
                 $params[] = "%$orderNo%";
+                $params[] = "%$cleanOrderNo%";
             }
             if (!empty($customerNo)) {
                 $sql .= " AND o.`customer_no` LIKE ? ";
@@ -2708,8 +2811,9 @@ try {
             // 鎖定當前欲展開樹狀圖之主訂單 (若未指定則預設取第一筆)
             $targetOrderNo = '';
             if (!empty($orderNo)) {
+                $cleanOrderNo = preg_replace('/^[A-Za-z0-9]+-/', '', $orderNo);
                 foreach ($rows as $r) {
-                    if ($r['order_no'] === $orderNo) {
+                    if ($r['order_no'] === $orderNo || $r['order_no'] === $cleanOrderNo) {
                         $targetOrderNo = $r['order_no'];
                         break;
                     }
@@ -2729,30 +2833,32 @@ try {
             $receipts = [];
 
             if (!empty($targetOrderNo)) {
+                $cleanTargetNo = preg_replace('/^[A-Za-z0-9]+-/', '', $targetOrderNo);
+
                 // 訂單主檔表頭
-                $orderStmt = $pdo->prepare("SELECT * FROM `erp_orders` WHERE `order_no` = ? AND `created_by` = ?");
-                $orderStmt->execute([$targetOrderNo, $uname]);
+                $orderStmt = $pdo->prepare("SELECT * FROM `erp_orders` WHERE (`order_no` = ? OR `order_no` = ?) AND `created_by` = ? LIMIT 1");
+                $orderStmt->execute([$targetOrderNo, $cleanTargetNo, $uname]);
                 $orderHeader = $orderStmt->fetch() ?: null;
 
                 // 訂單單身明細
-                $detStmt = $pdo->prepare("SELECT * FROM `erp_order_details` WHERE `order_no` = ? AND `created_by` = ? ORDER BY `line_no` ASC");
-                $detStmt->execute([$targetOrderNo, $uname]);
+                $detStmt = $pdo->prepare("SELECT * FROM `erp_order_details` WHERE (`order_no` = ? OR `order_no` = ?) AND `created_by` = ? ORDER BY `line_no` ASC");
+                $detStmt->execute([$targetOrderNo, $cleanTargetNo, $uname]);
                 $orderDetails = $detStmt->fetchAll();
 
                 // 關聯銷貨出庫單 (A231)
                 $delivStmt = $pdo->prepare("SELECT del.*, dd.`line_no` AS `detail_line_no`, dd.`item_no`, dd.`item_name`, dd.`delivery_qty`, dd.`gift_qty`, dd.`unit`
                     FROM `erp_deliveries` del
                     LEFT JOIN `erp_delivery_details` dd ON del.`delivery_no` = dd.`delivery_no` AND dd.`created_by` = del.`created_by`
-                    WHERE del.`order_no` = ? AND del.`created_by` = ?");
-                $delivStmt->execute([$targetOrderNo, $uname]);
+                    WHERE (del.`order_no` = ? OR del.`order_no` = ? OR del.`order_no` LIKE ?) AND del.`created_by` = ?");
+                $delivStmt->execute([$targetOrderNo, $cleanTargetNo, "%$cleanTargetNo%", $uname]);
                 $deliveries = $delivStmt->fetchAll();
 
                 // 關聯請購單 (C311)
                 $reqStmt = $pdo->prepare("SELECT req.*, rd.`line_no` AS `detail_line_no`, rd.`item_no`, rd.`item_name`, rd.`req_qty`, rd.`po_qty`, rd.`unit`
                     FROM `erp_requisitions` req
                     LEFT JOIN `erp_requisition_details` rd ON req.`req_no` = rd.`req_no` AND rd.`created_by` = req.`created_by`
-                    WHERE req.`source_no` = ? AND req.`created_by` = ?");
-                $reqStmt->execute([$targetOrderNo, $uname]);
+                    WHERE (req.`source_no` = ? OR req.`source_no` = ? OR req.`source_no` LIKE ? OR req.`req_no` LIKE ?) AND req.`created_by` = ?");
+                $reqStmt->execute([$targetOrderNo, $cleanTargetNo, "%$cleanTargetNo%", "%$cleanTargetNo%", $uname]);
                 $requisitions = $reqStmt->fetchAll();
 
                 // 關聯採購單 (C331)
@@ -2762,8 +2868,8 @@ try {
                     $poStmt = $pdo->prepare("SELECT po.*, pd.`line_no` AS `detail_line_no`, pd.`item_no`, pd.`item_name`, pd.`po_qty`, pd.`received_qty`, pd.`unit`, pd.`est_date`
                         FROM `erp_purchase_orders` po
                         LEFT JOIN `erp_po_details` pd ON po.`po_no` = pd.`po_no` AND pd.`created_by` = po.`created_by`
-                        WHERE po.`source_req_no` IN ($inPlaceholders) AND po.`created_by` = ?");
-                    $poStmt->execute(array_merge($reqNos, [$uname]));
+                        WHERE (po.`source_req_no` IN ($inPlaceholders) OR po.`po_no` LIKE ?) AND po.`created_by` = ?");
+                    $poStmt->execute(array_merge($reqNos, ["%$cleanTargetNo%", $uname]));
                     $pos = $poStmt->fetchAll();
                 }
 
@@ -2774,8 +2880,8 @@ try {
                     $grStmt = $pdo->prepare("SELECT gr.*, gd.`line_no` AS `detail_line_no`, gd.`item_no`, gd.`item_name`, gd.`gr_qty`, gd.`check_qty`, gd.`unit`, gd.`warehouse`
                         FROM `erp_goods_receipts` gr
                         LEFT JOIN `erp_gr_details` gd ON gr.`gr_no` = gd.`gr_no` AND gd.`created_by` = gr.`created_by`
-                        WHERE gr.`po_no` IN ($inPlaceholders) AND gr.`created_by` = ?");
-                    $grStmt->execute(array_merge($poNos, [$uname]));
+                        WHERE (gr.`po_no` IN ($inPlaceholders) OR gr.`po_no` LIKE ?) AND gr.`created_by` = ?");
+                    $grStmt->execute(array_merge($poNos, ["%$cleanTargetNo%", $uname]));
                     $receipts = $grStmt->fetchAll();
                 }
             }

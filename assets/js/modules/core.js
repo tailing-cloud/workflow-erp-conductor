@@ -628,14 +628,22 @@ Object.assign(window.Modules, {
 
             case 'goods_receipt':
                 columns = [
-                    { key: 'receipt_no', label: '進貨單號', width: '135px' },
-                    { key: 'receipt_date', label: '進貨日期', width: '85px' },
+                    { key: 'gr_type', label: '單別', width: '70px' },
+                    { key: 'gr_no', label: '進貨單號', width: '135px' },
+                    { key: 'gr_date', label: '進貨日期', width: '85px' },
                     { key: 'supplier_no', label: '供應商', width: '75px' },
                     { key: 'supplier_name', label: '廠商簡稱', width: '130px' },
                     { key: 'po_no', label: '來源採購單', width: '130px' },
                     { key: 'status', label: '狀態', width: '65px', align: 'center' }
                 ];
-                loadDataPromise = ERP_API.get('get_goods_receipts').then(r => r.data || []);
+                loadDataPromise = ERP_API.get('get_goods_receipts').then(r => (r.data || []).map(row => ({
+                    ...row,
+                    gr_type: row.gr_type || 'C341',
+                    gr_no: row.gr_no || row.receipt_no,
+                    receipt_no: row.gr_no || row.receipt_no,
+                    gr_date: row.gr_date || row.receipt_date || row.doc_date,
+                    receipt_date: row.gr_date || row.receipt_date || row.doc_date
+                })));
                 break;
 
             case 'delivery':

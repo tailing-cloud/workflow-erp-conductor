@@ -293,6 +293,7 @@ try {
         `tax_amount` DECIMAL(15,2) DEFAULT 0,
         `grand_total` DECIMAL(15,2) DEFAULT 0,
         `status` VARCHAR(20) DEFAULT '已確認',
+        `confirm_user` VARCHAR(50) DEFAULT '',
         `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
