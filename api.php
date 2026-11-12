@@ -11,7 +11,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
  * 依「年4碼 + 月2碼 + 這個月第幾張單號3碼」規則產生單據流水號 (例如 202611001)
  */
 if (!function_exists('generateNextDocNo')) {
-function generateNextDocNo($pdo, $type, $date = null) {
+function generateNextDocNo($pdo, $type, $date = null, $username = null) {
     if (!$date) $date = date('Y/m/d');
     $d = str_replace('-', '/', $date);
     $parts = explode('/', $d);
@@ -19,6 +19,10 @@ function generateNextDocNo($pdo, $type, $date = null) {
         $yyyymm = sprintf('%04d%02d', (int)$parts[0], (int)$parts[1]);
     } else {
         $yyyymm = date('Ym');
+    }
+
+    if (!$username && isset($_SESSION['erp_user']['username'])) {
+        $username = $_SESSION['erp_user']['username'];
     }
 
     $map = [
@@ -34,17 +38,22 @@ function generateNextDocNo($pdo, $type, $date = null) {
     $tbl = $cfg['table'];
     $col = $cfg['col'];
 
-    $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE `$col` LIKE ?");
-    $stmt->execute([$yyyymm . '%']);
+    if ($username) {
+        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE (`$col` LIKE ? OR `$col` LIKE ?) AND `created_by` = ?");
+        $stmt->execute([$yyyymm . '%', '%' . $yyyymm . '%', $username]);
+    } else {
+        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE (`$col` LIKE ? OR `$col` LIKE ?)");
+        $stmt->execute([$yyyymm . '%', '%' . $yyyymm . '%']);
+    }
     $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $maxSeq = 0;
     foreach ($rows as $val) {
         $trimmed = trim($val);
-        if (preg_match('/^' . $yyyymm . '(\d{3})$/', $trimmed, $m)) {
+        if (preg_match('/' . $yyyymm . '.*?(\d{3,4})$/', $trimmed, $m)) {
             $seq = (int)$m[1];
             if ($seq > $maxSeq) $maxSeq = $seq;
-        } elseif (preg_match('/' . $yyyymm . '.*?(\d{3})$/', $trimmed, $m)) {
+        } elseif (preg_match('/^' . $yyyymm . '(\d{3,4})$/', $trimmed, $m)) {
             $seq = (int)$m[1];
             if ($seq > $maxSeq) $maxSeq = $seq;
         }
@@ -369,6 +378,14 @@ try {
         case 'get_employees':
             $stmt = $pdo->query("SELECT * FROM `erp_employees` ORDER BY `emp_no` ASC");
             jsonResponse(['success' => true, 'data' => $stmt->fetchAll()]);
+            break;
+
+        case 'get_employee':
+            $empNo = trim($_GET['emp_no'] ?? '');
+            $stmt = $pdo->prepare("SELECT * FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+            $stmt->execute([$empNo]);
+            $emp = $stmt->fetch();
+            jsonResponse(['success' => true, 'employee' => $emp]);
             break;
 
         case 'reset_demo_data':
@@ -781,7 +798,39 @@ try {
             $uname = $curUser['username'];
             $stmt = $pdo->prepare("SELECT * FROM `erp_quotations` WHERE `created_by` = ? ORDER BY `quote_no` DESC");
             $stmt->execute([$uname]);
-            jsonResponse(['success' => true, 'data' => $stmt->fetchAll()]);
+            $quotes = $stmt->fetchAll();
+
+            // 若有合計金額為0但單身明細有金額之歷史資料，自動補算並同步回寫資料表
+            foreach ($quotes as &$q) {
+                if ((float)($q['grand_total'] ?? 0) == 0) {
+                    $stmtD = $pdo->prepare("SELECT SUM(amount) as tot_amt, SUM(qty) as tot_qty FROM `erp_quotation_details` WHERE `quote_no` = ? AND `created_by` = ?");
+                    $stmtD->execute([$q['quote_no'], $uname]);
+                    $rowD = $stmtD->fetch();
+                    if ($rowD && (float)$rowD['tot_amt'] > 0) {
+                        $amt = (float)$rowD['tot_amt'];
+                        $taxType = $q['tax_type'] ?? '1';
+                        $rate = (float)($q['tax_rate'] ?? 5.0);
+                        if (strpos($taxType, '2') !== false || strpos($taxType, '外加') !== false) {
+                            $tax = round($amt * ($rate / 100), 2);
+                            $grand = $amt + $tax;
+                            $quoteAmt = $amt;
+                        } else {
+                            $tax = round($amt - ($amt / (1 + $rate / 100)), 2);
+                            $grand = $amt;
+                            $quoteAmt = $amt;
+                        }
+                        $q['quote_amount'] = number_format($quoteAmt, 2, '.', '');
+                        $q['tax_amount'] = number_format($tax, 2, '.', '');
+                        $q['grand_total'] = number_format($grand, 2, '.', '');
+                        $q['total_qty'] = number_format((float)$rowD['tot_qty'], 2, '.', '');
+                        $pdo->prepare("UPDATE `erp_quotations` SET `quote_amount`=?, `tax_amount`=?, `grand_total`=?, `total_qty`=? WHERE `quote_no`=? AND `created_by`=?")
+                            ->execute([$quoteAmt, $tax, $grand, (float)$rowD['tot_qty'], $q['quote_no'], $uname]);
+                    }
+                }
+            }
+            unset($q);
+
+            jsonResponse(['success' => true, 'data' => $quotes]);
             break;
 
         case 'get_quotation':
@@ -851,6 +900,42 @@ try {
                 ON DUPLICATE KEY UPDATE 
                 `doc_date`=VALUES(`doc_date`), `quote_date`=VALUES(`quote_date`), `effective_date`=VALUES(`effective_date`), `expiry_date`=VALUES(`expiry_date`), `customer_confirmed`=VALUES(`customer_confirmed`), `customer_no`=VALUES(`customer_no`), `customer_name`=VALUES(`customer_name`), `tax_type`=VALUES(`tax_type`), `tax_code`=VALUES(`tax_code`), `tax_rate`=VALUES(`tax_rate`), `sales_person`=VALUES(`sales_person`), `currency`=VALUES(`currency`), `exchange_rate`=VALUES(`exchange_rate`), `quote_amount`=VALUES(`quote_amount`), `tax_amount`=VALUES(`tax_amount`), `grand_total`=VALUES(`grand_total`), `total_qty`=VALUES(`total_qty`), `status`=VALUES(`status`), `created_by`=VALUES(`created_by`)");
             
+            // Calculate totals if missing or 0
+            $quoteAmount = isset($header['quote_amount']) ? (float)$header['quote_amount'] : 0;
+            $taxAmount = isset($header['tax_amount']) ? (float)$header['tax_amount'] : 0;
+            $grandTotal = isset($header['grand_total']) ? (float)$header['grand_total'] : 0;
+            $totalQty = isset($header['total_qty']) ? (float)$header['total_qty'] : 0;
+
+            if ($grandTotal == 0 && !empty($details)) {
+                $calcAmt = 0;
+                $calcQty = 0;
+                foreach ($details as $d) {
+                    $q = (float)($d['qty'] ?? 0);
+                    $p = (float)($d['unit_price'] ?? $d['price'] ?? 0);
+                    $lineAmt = isset($d['amount']) && (float)$d['amount'] > 0 ? (float)$d['amount'] : ($q * $p);
+                    $calcAmt += $lineAmt;
+                    $calcQty += $q;
+                }
+                $taxRate = isset($header['tax_rate']) ? (float)$header['tax_rate'] : 5.0;
+                $taxTypeStr = $header['tax_type'] ?? '1';
+                $isInclusive = (strpos($taxTypeStr, '1') !== false || strpos($taxTypeStr, '內含') !== false);
+                $isExclusive = (strpos($taxTypeStr, '2') !== false || strpos($taxTypeStr, '外加') !== false);
+                if ($isInclusive) {
+                    $taxAmount = round($calcAmt - ($calcAmt / (1 + $taxRate / 100)), 2);
+                    $quoteAmount = $calcAmt;
+                    $grandTotal = $calcAmt;
+                } elseif ($isExclusive) {
+                    $taxAmount = round($calcAmt * ($taxRate / 100), 2);
+                    $quoteAmount = $calcAmt;
+                    $grandTotal = $calcAmt + $taxAmount;
+                } else {
+                    $taxAmount = 0;
+                    $quoteAmount = $calcAmt;
+                    $grandTotal = $calcAmt;
+                }
+                if ($totalQty == 0) $totalQty = $calcQty;
+            }
+
             $stmtH->execute([
                 $quoteNo,
                 $header['quote_type'] ?? 'A211',
@@ -869,10 +954,10 @@ try {
                 $header['exchange_rate'] ?? 1.0,
                 $header['sales_person'] ?? $uname,
                 $header['tax_rate'] ?? 5.0,
-                $header['quote_amount'] ?? 0,
-                $header['tax_amount'] ?? 0,
-                $header['grand_total'] ?? 0,
-                $header['total_qty'] ?? 0,
+                $quoteAmount,
+                $taxAmount,
+                $grandTotal,
+                $totalQty,
                 $header['status'] ?? '已確認',
                 $uname
             ]);
@@ -1234,8 +1319,8 @@ try {
             // Insert Requisition Details
             $pdo->prepare("DELETE FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqNo, $uname]);
             $stmtRD = $pdo->prepare("INSERT INTO `erp_requisition_details`
-                (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`, `created_by`)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)");
+                (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`, `pur_qty`, `pur_unit`, `pur_price`, `pur_amount`, `pricing_qty`, `pricing_unit`, `created_by`)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)");
             
             foreach ($orderItems as $idx => $it) {
                 $itemStmt = $pdo->prepare("SELECT `std_purchase_price` FROM `erp_items` WHERE `item_no` = ? AND `created_by` = ?");
@@ -1255,6 +1340,12 @@ try {
                     $it['warehouse'] ?: 'W01',
                     $purPrice,
                     $lineAmt,
+                    $it['order_qty'],
+                    $it['unit'] ?: '台',
+                    $purPrice,
+                    $lineAmt,
+                    $it['order_qty'],
+                    $it['unit'] ?: '台',
                     $uname
                 ]);
             }
@@ -1445,126 +1536,283 @@ try {
                 $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
-                    WHERE d.id = ? AND d.created_by = ? AND r.status = '已確認'");
+                    WHERE d.id = ? AND d.created_by = ?");
                 $stmt->execute([$id, $uname]);
             } else {
                 $stmt = $pdo->prepare("SELECT d.*, r.doc_date, r.req_date, r.req_type, r.factory, r.dept, r.status as req_status, r.is_locked as req_is_locked 
                     FROM `erp_requisition_details` d 
                     JOIN `erp_requisitions` r ON d.req_no = r.req_no AND r.created_by = d.created_by
-                    WHERE d.req_no = ? AND d.line_no = ? AND d.created_by = ? AND r.status = '已確認'");
+                    WHERE d.req_no = ? AND d.line_no = ? AND d.created_by = ?");
                 $stmt->execute([$reqNo, $lineNo, $uname]);
             }
             $row = $stmt->fetch();
-            if (!$row) jsonResponse(['success' => false, 'error' => '查無請購明細資料，或該請購單尚未於請購單建立作業中確認']);
+            if (!$row) jsonResponse(['success' => false, 'error' => '查無請購明細資料']);
+            if (!empty($row['supplier_no'])) {
+                $sStmt = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? AND (`created_by` = ? OR `created_by` = 'B18') ORDER BY (`created_by` = ?) DESC LIMIT 1");
+                $sStmt->execute([$row['supplier_no'], $uname, $uname]);
+                $sRow = $sStmt->fetch();
+                $row['supplier_name'] = $sRow ? ($sRow['name_short'] ?: $sRow['full_name']) : '';
+            }
+            if (!empty($row['buyer'])) {
+                $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+                $eStmt->execute([$row['buyer']]);
+                $eRow = $eStmt->fetch();
+                $row['buyer_name'] = $eRow ? $eRow['emp_name'] : $row['buyer'];
+            }
             jsonResponse(['success' => true, 'data' => $row]);
             break;
 
         case 'save_puri06_detail':
-            requireAuth();
+            $curUser = requireAuth();
+            $uname = $curUser['username'];
             $reqType = trim($input['req_type'] ?? 'A311');
             $docDate = trim($input['doc_date'] ?? date('Y/m/d'));
             $reqNo = trim($input['req_no'] ?? '');
             $lineNo = trim($input['line_no'] ?? '0001');
+            $detailId = (int)($input['id'] ?? 0);
 
             if (empty($reqNo)) {
-                $cleanNo = generateNextDocNo($pdo, 'requisition', $docDate);
+                $cleanNo = generateNextDocNo($pdo, 'requisition', $docDate, $uname);
                 $reqNo = $reqType . '-' . $cleanNo;
             }
 
-            // Ensure parent requisition header exists
+            // Check if detail already exists
+            $existing = null;
+            if ($detailId > 0) {
+                $chk = $pdo->prepare("SELECT * FROM `erp_requisition_details` WHERE `id` = ? AND `created_by` = ?");
+                $chk->execute([$detailId, $uname]);
+                $existing = $chk->fetch();
+            }
+            if (!$existing) {
+                $chk = $pdo->prepare("SELECT * FROM `erp_requisition_details` WHERE `req_no` = ? AND `line_no` = ? AND `created_by` = ?");
+                $chk->execute([$reqNo, $lineNo, $uname]);
+                $existing = $chk->fetch();
+            }
+
+            $reqQty = (float)($input['req_qty'] ?? 0);
+            $purPrice = (float)($input['pur_price'] ?? 0);
+            if ($purPrice <= 0 && !empty($input['unit_price'])) {
+                $purPrice = (float)$input['unit_price'];
+            }
+            if ($purPrice <= 0 && $existing) {
+                if ((float)$existing['pur_price'] > 0) {
+                    $purPrice = (float)$existing['pur_price'];
+                } elseif ((float)$existing['unit_price'] > 0) {
+                    $purPrice = (float)$existing['unit_price'];
+                }
+            }
+
+            $purAmt = (float)($input['pur_amount'] ?? 0);
+            if ($purAmt <= 0 && $purPrice > 0 && $reqQty > 0) {
+                $purAmt = $purPrice * $reqQty;
+            }
+            if ($purAmt <= 0 && $existing) {
+                if ((float)$existing['pur_amount'] > 0) {
+                    $purAmt = (float)$existing['pur_amount'];
+                } elseif ((float)$existing['amount'] > 0) {
+                    $purAmt = (float)$existing['amount'];
+                }
+            }
+
+            $purQty = (float)($input['pur_qty'] ?? $reqQty);
+            $pricingQty = (float)($input['pricing_qty'] ?? $reqQty);
+            $supplierNo = trim($input['supplier_no'] ?? '');
+            if (empty($supplierNo) && $existing && !empty($existing['supplier_no'])) {
+                $supplierNo = $existing['supplier_no'];
+            }
+            $buyer = trim($input['buyer'] ?? '');
+            if (empty($buyer) && $existing && !empty($existing['buyer'])) {
+                $buyer = $existing['buyer'];
+            }
+            if (empty($buyer)) $buyer = $uname;
+
+            if ($existing) {
+                // Update existing record
+                $stmtUpd = $pdo->prepare("UPDATE `erp_requisition_details` SET
+                    `item_no` = ?,
+                    `item_name` = ?,
+                    `item_spec` = ?,
+                    `req_qty` = ?,
+                    `unit` = ?,
+                    `warehouse` = ?,
+                    `unit_price` = ?,
+                    `amount` = ?,
+                    `po_qty` = ?,
+                    `buyer` = ?,
+                    `supplier_no` = ?,
+                    `delivery_wh` = ?,
+                    `multi_tax` = ?,
+                    `pur_qty` = ?,
+                    `pack_pur_qty` = ?,
+                    `pur_unit` = ?,
+                    `pack_pur_unit` = ?,
+                    `pur_small_unit` = ?,
+                    `trading_terms` = ?,
+                    `tax_code` = ?,
+                    `tax_type` = ?,
+                    `tax_rate` = ?,
+                    `currency` = ?,
+                    `pricing_qty` = ?,
+                    `pur_price` = ?,
+                    `pricing_unit` = ?,
+                    `pur_amount` = ?,
+                    `inquiry_code` = ?,
+                    `delivery_date` = ?,
+                    `is_urgent` = ?,
+                    `pur_remark` = ?,
+                    `is_locked` = ?,
+                    `is_purchased` = ?,
+                    `close_code` = ?,
+                    `req_dept` = ?,
+                    `po_no` = ?,
+                    `manufacturer` = ?,
+                    `approved_model` = ?,
+                    `req_unit` = ?,
+                    `pack_req_qty` = ?,
+                    `req_small_unit` = ?,
+                    `pack_req_unit` = ?,
+                    `require_date` = ?,
+                    `req_remark` = ?,
+                    `min_replenish` = ?,
+                    `project_no` = ?,
+                    `req_user` = ?
+                    WHERE `id` = ? AND `created_by` = ?");
+                $stmtUpd->execute([
+                    $input['item_no'] ?? $existing['item_no'] ?? '',
+                    $input['item_name'] ?? $existing['item_name'] ?? '',
+                    $input['item_spec'] ?? $existing['item_spec'] ?? '',
+                    $reqQty,
+                    $input['req_unit'] ?? $input['unit'] ?? $existing['unit'] ?? 'PC',
+                    $input['delivery_wh'] ?? $input['warehouse'] ?? $existing['warehouse'] ?? 'P003',
+                    $purPrice,
+                    $purAmt,
+                    (float)($input['po_qty'] ?? $existing['po_qty'] ?? 0),
+                    $buyer,
+                    $supplierNo,
+                    $input['delivery_wh'] ?? $existing['delivery_wh'] ?? 'P003',
+                    !empty($input['multi_tax']) ? 1 : 0,
+                    $purQty,
+                    (float)($input['pack_pur_qty'] ?? $existing['pack_pur_qty'] ?? 0),
+                    $input['pur_unit'] ?? $existing['pur_unit'] ?? 'PC',
+                    $input['pack_pur_unit'] ?? $existing['pack_pur_unit'] ?? '',
+                    $input['pur_small_unit'] ?? $existing['pur_small_unit'] ?? '',
+                    $input['trading_terms'] ?? $existing['trading_terms'] ?? '',
+                    $input['tax_code'] ?? $existing['tax_code'] ?? 'P05',
+                    $input['tax_type'] ?? $existing['tax_type'] ?? '2:應稅外加',
+                    (float)($input['tax_rate'] ?? $existing['tax_rate'] ?? 5.00),
+                    $input['currency'] ?? $existing['currency'] ?? 'NTD',
+                    $pricingQty,
+                    $purPrice,
+                    $input['pricing_unit'] ?? $existing['pricing_unit'] ?? 'PC',
+                    $purAmt,
+                    $input['inquiry_code'] ?? $existing['inquiry_code'] ?? 'N',
+                    $input['delivery_date'] ?? $existing['delivery_date'] ?? date('Y/m/d'),
+                    !empty($input['is_urgent']) ? 1 : 0,
+                    $input['pur_remark'] ?? $existing['pur_remark'] ?? '',
+                    !empty($input['is_locked']) ? 1 : ($existing['is_locked'] ?? 0),
+                    !empty($input['is_purchased']) ? 1 : ($existing['is_purchased'] ?? 0),
+                    $input['close_code'] ?? $existing['close_code'] ?? 'N',
+                    $input['req_dept'] ?? $existing['req_dept'] ?? '',
+                    $input['po_no'] ?? $existing['po_no'] ?? '',
+                    $input['manufacturer'] ?? $existing['manufacturer'] ?? '',
+                    $input['approved_model'] ?? $existing['approved_model'] ?? '',
+                    $input['req_unit'] ?? $existing['req_unit'] ?? 'PC',
+                    (float)($input['pack_req_qty'] ?? $existing['pack_req_qty'] ?? 0),
+                    $input['req_small_unit'] ?? $existing['req_small_unit'] ?? '',
+                    $input['pack_req_unit'] ?? $existing['pack_req_unit'] ?? '',
+                    $input['require_date'] ?? $existing['require_date'] ?? date('Y/m/d'),
+                    $input['req_remark'] ?? $existing['req_remark'] ?? '',
+                    (float)($input['min_replenish'] ?? $existing['min_replenish'] ?? 0),
+                    $input['project_no'] ?? $existing['project_no'] ?? '',
+                    $input['req_user'] ?? $existing['req_user'] ?? '',
+                    $existing['id'],
+                    $uname
+                ]);
+            } else {
+                // Insert new detail
+                $stmtD = $pdo->prepare("INSERT INTO `erp_requisition_details`
+                    (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`,
+                     `buyer`, `supplier_no`, `delivery_wh`, `multi_tax`, `pur_qty`, `pack_pur_qty`, `pur_unit`, `pack_pur_unit`, `pur_small_unit`,
+                     `trading_terms`, `tax_code`, `tax_type`, `tax_rate`, `currency`, `pricing_qty`, `pur_price`, `pricing_unit`, `pur_amount`,
+                     `inquiry_code`, `delivery_date`, `is_urgent`, `pur_remark`, `is_locked`, `is_purchased`, `close_code`, `req_dept`, `po_no`,
+                     `manufacturer`, `approved_model`, `req_unit`, `pack_req_qty`, `req_small_unit`, `pack_req_unit`, `require_date`, `req_remark`,
+                     `min_replenish`, `project_no`, `req_user`, `created_by`)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmtD->execute([
+                    $reqNo, $lineNo,
+                    $input['item_no'] ?? '',
+                    $input['item_name'] ?? '',
+                    $input['item_spec'] ?? '',
+                    $reqQty,
+                    $input['req_unit'] ?? $input['unit'] ?? 'PC',
+                    $input['delivery_wh'] ?? $input['warehouse'] ?? 'P003',
+                    $purPrice,
+                    $purAmt,
+                    (float)($input['po_qty'] ?? 0),
+                    $buyer,
+                    $supplierNo,
+                    $input['delivery_wh'] ?? 'P003',
+                    !empty($input['multi_tax']) ? 1 : 0,
+                    $purQty,
+                    (float)($input['pack_pur_qty'] ?? 0),
+                    $input['pur_unit'] ?? 'PC',
+                    $input['pack_pur_unit'] ?? '',
+                    $input['pur_small_unit'] ?? '',
+                    $input['trading_terms'] ?? '',
+                    $input['tax_code'] ?? 'P05',
+                    $input['tax_type'] ?? '2:應稅外加',
+                    (float)($input['tax_rate'] ?? 5.00),
+                    $input['currency'] ?? 'NTD',
+                    $pricingQty,
+                    $purPrice,
+                    $input['pricing_unit'] ?? 'PC',
+                    $purAmt,
+                    $input['inquiry_code'] ?? 'N',
+                    $input['delivery_date'] ?? date('Y/m/d'),
+                    !empty($input['is_urgent']) ? 1 : 0,
+                    $input['pur_remark'] ?? '',
+                    !empty($input['is_locked']) ? 1 : 0,
+                    !empty($input['is_purchased']) ? 1 : 0,
+                    $input['close_code'] ?? 'N',
+                    $input['req_dept'] ?? '',
+                    $input['po_no'] ?? '',
+                    $input['manufacturer'] ?? '',
+                    $input['approved_model'] ?? '',
+                    $input['req_unit'] ?? 'PC',
+                    (float)($input['pack_req_qty'] ?? 0),
+                    $input['req_small_unit'] ?? '',
+                    $input['pack_req_unit'] ?? '',
+                    $input['require_date'] ?? date('Y/m/d'),
+                    $input['req_remark'] ?? '',
+                    (float)($input['min_replenish'] ?? 0),
+                    $input['project_no'] ?? '',
+                    $input['req_user'] ?? '',
+                    $uname
+                ]);
+            }
+
+            // Ensure parent requisition header exists and is updated
             $stmtH = $pdo->prepare("INSERT INTO `erp_requisitions`
-                (`req_no`, `req_type`, `doc_date`, `req_date`, `factory`, `dept`, `req_user`, `status`, `is_locked`, `total_qty`, `total_amount`)
-                VALUES (?, ?, ?, ?, '01', ?, ?, '已確認', 1, ?, ?)
-                ON DUPLICATE KEY UPDATE `doc_date`=VALUES(`doc_date`), `req_date`=VALUES(`req_date`), `dept`=VALUES(`dept`), `req_user`=VALUES(`req_user`)");
+                (`req_no`, `req_type`, `doc_date`, `req_date`, `factory`, `dept`, `req_user`, `status`, `is_locked`, `total_qty`, `total_amount`, `created_by`)
+                VALUES (?, ?, ?, ?, '01', ?, ?, '已確認', 1, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE `doc_date`=VALUES(`doc_date`), `req_date`=VALUES(`req_date`), `dept`=VALUES(`dept`), `req_user`=VALUES(`req_user`), `total_qty`=VALUES(`total_qty`), `total_amount`=VALUES(`total_amount`)");
             $stmtH->execute([
                 $reqNo,
                 $reqType,
                 $docDate,
                 $input['req_date'] ?? $docDate,
                 $input['req_dept'] ?? '0100 業務部',
-                $input['req_user'] ?? 'B18',
-                (float)($input['req_qty'] ?? 0),
-                (float)($input['pur_amount'] ?? 0)
-            ]);
-
-            // Upsert detail
-            $stmtD = $pdo->prepare("INSERT INTO `erp_requisition_details`
-                (`req_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `req_qty`, `unit`, `warehouse`, `unit_price`, `amount`, `po_qty`,
-                 `buyer`, `supplier_no`, `delivery_wh`, `multi_tax`, `pur_qty`, `pack_pur_qty`, `pur_unit`, `pack_pur_unit`, `pur_small_unit`,
-                 `trading_terms`, `tax_code`, `tax_type`, `tax_rate`, `currency`, `pricing_qty`, `pur_price`, `pricing_unit`, `pur_amount`,
-                 `inquiry_code`, `delivery_date`, `is_urgent`, `pur_remark`, `is_locked`, `is_purchased`, `close_code`, `req_dept`, `po_no`,
-                 `manufacturer`, `approved_model`, `req_unit`, `pack_req_qty`, `req_small_unit`, `pack_req_unit`, `require_date`, `req_remark`,
-                 `min_replenish`, `project_no`, `req_user`)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                 `item_no`=VALUES(`item_no`), `item_name`=VALUES(`item_name`), `item_spec`=VALUES(`item_spec`), `req_qty`=VALUES(`req_qty`),
-                 `unit`=VALUES(`unit`), `warehouse`=VALUES(`warehouse`), `unit_price`=VALUES(`unit_price`), `amount`=VALUES(`amount`),
-                 `buyer`=VALUES(`buyer`), `supplier_no`=VALUES(`supplier_no`), `delivery_wh`=VALUES(`delivery_wh`), `multi_tax`=VALUES(`multi_tax`),
-                 `pur_qty`=VALUES(`pur_qty`), `pack_pur_qty`=VALUES(`pack_pur_qty`), `pur_unit`=VALUES(`pur_unit`), `pack_pur_unit`=VALUES(`pack_pur_unit`),
-                 `pur_small_unit`=VALUES(`pur_small_unit`), `trading_terms`=VALUES(`trading_terms`), `tax_code`=VALUES(`tax_code`), `tax_type`=VALUES(`tax_type`),
-                 `tax_rate`=VALUES(`tax_rate`), `currency`=VALUES(`currency`), `pricing_qty`=VALUES(`pricing_qty`), `pur_price`=VALUES(`pur_price`),
-                 `pricing_unit`=VALUES(`pricing_unit`), `pur_amount`=VALUES(`pur_amount`), `inquiry_code`=VALUES(`inquiry_code`),
-                 `delivery_date`=VALUES(`delivery_date`), `is_urgent`=VALUES(`is_urgent`), `pur_remark`=VALUES(`pur_remark`),
-                 `is_locked`=VALUES(`is_locked`), `is_purchased`=VALUES(`is_purchased`), `close_code`=VALUES(`close_code`), `req_dept`=VALUES(`req_dept`),
-                 `po_no`=VALUES(`po_no`), `manufacturer`=VALUES(`manufacturer`), `approved_model`=VALUES(`approved_model`),
-                 `req_unit`=VALUES(`req_unit`), `pack_req_qty`=VALUES(`pack_req_qty`), `req_small_unit`=VALUES(`req_small_unit`),
-                 `pack_req_unit`=VALUES(`pack_req_unit`), `require_date`=VALUES(`require_date`), `req_remark`=VALUES(`req_remark`),
-                 `min_replenish`=VALUES(`min_replenish`), `project_no`=VALUES(`project_no`), `req_user`=VALUES(`req_user`)");
-
-            $reqQty = (float)($input['req_qty'] ?? 0);
-            $purPrice = (float)($input['pur_price'] ?? $input['unit_price'] ?? 0);
-            $purAmt = (float)($input['pur_amount'] ?? ($reqQty * $purPrice));
-
-            $stmtD->execute([
-                $reqNo, $lineNo,
-                $input['item_no'] ?? '',
-                $input['item_name'] ?? '',
-                $input['item_spec'] ?? '',
+                $input['req_user'] ?? $uname,
                 $reqQty,
-                $input['req_unit'] ?? $input['unit'] ?? 'PC',
-                $input['delivery_wh'] ?? $input['warehouse'] ?? 'P003',
-                $purPrice,
                 $purAmt,
-                (float)($input['po_qty'] ?? 0),
-                $input['buyer'] ?? '',
-                $input['supplier_no'] ?? '',
-                $input['delivery_wh'] ?? 'P003',
-                !empty($input['multi_tax']) ? 1 : 0,
-                (float)($input['pur_qty'] ?? $reqQty),
-                (float)($input['pack_pur_qty'] ?? 0),
-                $input['pur_unit'] ?? 'PC',
-                $input['pack_pur_unit'] ?? '',
-                $input['pur_small_unit'] ?? '',
-                $input['trading_terms'] ?? '',
-                $input['tax_code'] ?? 'P05',
-                $input['tax_type'] ?? '2:應稅外加',
-                (float)($input['tax_rate'] ?? 5.00),
-                $input['currency'] ?? 'NTD',
-                (float)($input['pricing_qty'] ?? $reqQty),
-                $purPrice,
-                $input['pricing_unit'] ?? 'PC',
-                $purAmt,
-                $input['inquiry_code'] ?? 'N',
-                $input['delivery_date'] ?? date('Y/m/d'),
-                !empty($input['is_urgent']) ? 1 : 0,
-                $input['pur_remark'] ?? '',
-                !empty($input['is_locked']) ? 1 : 0,
-                !empty($input['is_purchased']) ? 1 : 0,
-                $input['close_code'] ?? 'N',
-                $input['req_dept'] ?? '',
-                $input['po_no'] ?? '',
-                $input['manufacturer'] ?? '',
-                $input['approved_model'] ?? '',
-                $input['req_unit'] ?? 'PC',
-                (float)($input['pack_req_qty'] ?? 0),
-                $input['req_small_unit'] ?? '',
-                $input['pack_req_unit'] ?? '',
-                $input['require_date'] ?? date('Y/m/d'),
-                $input['req_remark'] ?? '',
-                (float)($input['min_replenish'] ?? 0),
-                $input['project_no'] ?? '',
-                $input['req_user'] ?? ''
+                $uname
             ]);
+
+            // Sync total_qty and total_amount from sum of all details
+            $pdo->prepare("UPDATE `erp_requisitions` SET
+                `total_qty` = (SELECT IFNULL(SUM(req_qty), 0) FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?),
+                `total_amount` = (SELECT IFNULL(SUM(amount), 0) FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?)
+                WHERE `req_no` = ? AND `created_by` = ?")->execute([$reqNo, $uname, $reqNo, $uname, $reqNo, $uname]);
 
             jsonResponse(['success' => true, 'req_no' => $reqNo, 'line_no' => $lineNo]);
             break;
@@ -1622,6 +1870,18 @@ try {
                 $row = $stmt->fetch();
             }
             if ($row) {
+                if (!empty($row['supplier_no'])) {
+                    $sStmt = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? AND (`created_by` = ? OR `created_by` = 'B18') ORDER BY (`created_by` = ?) DESC LIMIT 1");
+                    $sStmt->execute([$row['supplier_no'], $uname, $uname]);
+                    $sRow = $sStmt->fetch();
+                    $row['supplier_name'] = $sRow ? ($sRow['name_short'] ?: $sRow['full_name']) : '';
+                }
+                if (!empty($row['buyer'])) {
+                    $eStmt = $pdo->prepare("SELECT `emp_name` FROM `erp_employees` WHERE `emp_no` = ? LIMIT 1");
+                    $eStmt->execute([$row['buyer']]);
+                    $eRow = $eStmt->fetch();
+                    $row['buyer_name'] = $eRow ? $eRow['emp_name'] : $row['buyer'];
+                }
                 jsonResponse(['success' => true, 'data' => $row]);
             } else {
                 jsonResponse(['success' => false, 'error' => '已無已確認請購資料']);
@@ -1667,53 +1927,106 @@ try {
                 // Update requisition lock status
                 $pdo->prepare("UPDATE `erp_requisitions` SET `is_locked` = 1, `status` = '已確認' WHERE `req_no` = ? AND `created_by` = ?")->execute([$req['req_no'], $uname]);
 
-                // Generate Purchase Order
+                // Generate Purchase Order number
                 $cleanNo = preg_replace('/^[A-Z0-9]+-/', '', $req['req_no']);
                 $poNo = $poType . '-' . $cleanNo;
 
                 // Fetch details
-                $dStmt = $pdo->prepare("SELECT * FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ?");
+                $dStmt = $pdo->prepare("SELECT * FROM `erp_requisition_details` WHERE `req_no` = ? AND `created_by` = ? ORDER BY `line_no` ASC, `id` ASC");
                 $dStmt->execute([$req['req_no'], $uname]);
-                $reqItems = $dStmt->fetchAll();
+                $rawItems = $dStmt->fetchAll();
+
+                // Deduplicate items by line_no
+                $reqItems = [];
+                foreach ($rawItems as $rit) {
+                    $lNo = $rit['line_no'] ?: '0001';
+                    if (!isset($reqItems[$lNo])) {
+                        $reqItems[$lNo] = $rit;
+                    } else {
+                        // Merge fields if duplicate exists
+                        if (empty($reqItems[$lNo]['supplier_no']) && !empty($rit['supplier_no'])) {
+                            $reqItems[$lNo]['supplier_no'] = $rit['supplier_no'];
+                        }
+                        if ((float)$reqItems[$lNo]['unit_price'] <= 0 && (float)$rit['unit_price'] > 0) {
+                            $reqItems[$lNo]['unit_price'] = $rit['unit_price'];
+                            $reqItems[$lNo]['amount'] = $rit['amount'];
+                        }
+                        if (empty($reqItems[$lNo]['buyer']) && !empty($rit['buyer'])) {
+                            $reqItems[$lNo]['buyer'] = $rit['buyer'];
+                        }
+                    }
+                }
 
                 $totalQty = 0;
-                $totalAmt = 0;
+                $poAmount = 0;
+                $suppNo = '';
+                $poBuyer = $buyer;
+
                 foreach ($reqItems as $rit) {
                     $totalQty += (float)$rit['req_qty'];
-                    $totalAmt += (float)$rit['amount'];
+                    $poAmount += (float)$rit['amount'];
+                    if (empty($suppNo) && !empty(trim($rit['supplier_no'] ?? ''))) {
+                        $suppNo = trim($rit['supplier_no']);
+                    }
+                    if (!empty(trim($rit['buyer'] ?? ''))) {
+                        $poBuyer = trim($rit['buyer']);
+                    }
                 }
-                $poTax = round($totalAmt * 5 / 105);
-                $netAmt = $totalAmt - $poTax;
 
-                $firstRit = reset($reqItems);
-                $suppNo = !empty($firstRit['supplier_no']) ? $firstRit['supplier_no'] : 'V001';
-                $suppName = '深圳影石創新科技股份有限公司';
-                $sStmt = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? LIMIT 1");
-                $sStmt->execute([$suppNo]);
+                if (empty($suppNo)) {
+                    $suppNo = 'V001';
+                }
+
+                $suppName = '';
+                $sStmt = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? AND (`created_by` = ? OR `created_by` = 'B18') ORDER BY (`created_by` = ?) DESC LIMIT 1");
+                $sStmt->execute([$suppNo, $uname, $uname]);
                 $sRow = $sStmt->fetch();
+                if (!$sRow) {
+                    $sStmtAny = $pdo->prepare("SELECT `name_short`, `full_name` FROM `erp_suppliers` WHERE `supplier_no` = ? LIMIT 1");
+                    $sStmtAny->execute([$suppNo]);
+                    $sRow = $sStmtAny->fetch();
+                }
                 if ($sRow) {
                     $suppName = $sRow['name_short'] ?: $sRow['full_name'];
                 }
-                $poBuyer = !empty($firstRit['buyer']) ? $firstRit['buyer'] : $buyer;
+                if (empty($suppName)) {
+                    $suppName = ($suppNo === 'V001') ? '影石創新' : $suppNo;
+                }
 
-                // Insert Purchase Order
+                $taxRate = 5.0;
+                $taxAmount = round($poAmount * ($taxRate / 100.0));
+                $grandTotal = $poAmount + $taxAmount;
+
+                // Insert / Update Purchase Order
                 $stmtPo = $pdo->prepare("INSERT INTO `erp_purchase_orders`
                     (`po_no`, `po_type`, `doc_date`, `po_date`, `supplier_no`, `supplier_name`, `factory`, `buyer`, `currency`, `exchange_rate`, `tax_code`, `tax_type`, `tax_rate`, `confirm_user`, `source_req_no`, `po_amount`, `tax_amount`, `grand_total`, `total_qty`, `status`, `created_by`)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1.0, 'P05', '2:應稅外加', 5.0, ?, ?, ?, ?, ?, ?, '已確認', ?)
-                    ON DUPLICATE KEY UPDATE `grand_total`=VALUES(`grand_total`), `created_by`=VALUES(`created_by`)");
+                    ON DUPLICATE KEY UPDATE 
+                    `supplier_no`=VALUES(`supplier_no`),
+                    `supplier_name`=VALUES(`supplier_name`),
+                    `factory`=VALUES(`factory`),
+                    `buyer`=VALUES(`buyer`),
+                    `po_amount`=VALUES(`po_amount`),
+                    `tax_amount`=VALUES(`tax_amount`),
+                    `grand_total`=VALUES(`grand_total`),
+                    `total_qty`=VALUES(`total_qty`),
+                    `status`='已確認',
+                    `created_by`=VALUES(`created_by`)");
                 $stmtPo->execute([
-                    $poNo, $poType, $poDate, $poDate, $suppNo, $suppName, $factory, $poBuyer, $currency, $poBuyer, $req['req_no'], $netAmt, $poTax, $totalAmt, $totalQty, $uname
+                    $poNo, $poType, $poDate, $poDate, $suppNo, $suppName, $factory, $poBuyer, $currency, $poBuyer, $req['req_no'], $poAmount, $taxAmount, $grandTotal, $totalQty, $uname
                 ]);
 
-                // Insert PO details
+                // Insert PO details (deduplicated)
                 $pdo->prepare("DELETE FROM `erp_po_details` WHERE `po_no` = ? AND `created_by` = ?")->execute([$poNo, $uname]);
                 $stmtPoD = $pdo->prepare("INSERT INTO `erp_po_details`
                     (`po_no`, `line_no`, `item_no`, `item_name`, `item_spec`, `po_qty`, `received_qty`, `unit`, `unit_price`, `amount`, `est_date`, `created_by`)
                     VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)");
-                foreach ($reqItems as $idx => $rit) {
+                
+                $lIdx = 1;
+                foreach ($reqItems as $rit) {
                     $stmtPoD->execute([
                         $poNo,
-                        $rit['line_no'] ?: sprintf('%04d', $idx + 1),
+                        sprintf('%04d', $lIdx++),
                         $rit['item_no'],
                         $rit['item_name'],
                         $rit['item_spec'],
@@ -1725,6 +2038,10 @@ try {
                         $uname
                     ]);
                 }
+
+                // Mark requisition details as purchased
+                $pdo->prepare("UPDATE `erp_requisition_details` SET `is_purchased` = 1, `is_locked` = 1, `po_no` = ? WHERE `req_no` = ? AND `created_by` = ?")->execute([$poNo, $req['req_no'], $uname]);
+
                 $genPoNos[] = $poNo;
             }
 

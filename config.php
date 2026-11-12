@@ -74,21 +74,21 @@ function generateNextDocNo($pdo, $type, $date = null, $username = null) {
     $col = $cfg['col'];
 
     if ($username) {
-        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE `$col` LIKE ? AND `created_by` = ?");
-        $stmt->execute([$yyyymm . '%', $username]);
+        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE (`$col` LIKE ? OR `$col` LIKE ?) AND `created_by` = ?");
+        $stmt->execute([$yyyymm . '%', '%' . $yyyymm . '%', $username]);
     } else {
-        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE `$col` LIKE ?");
-        $stmt->execute([$yyyymm . '%']);
+        $stmt = $pdo->prepare("SELECT `$col` FROM `$tbl` WHERE (`$col` LIKE ? OR `$col` LIKE ?)");
+        $stmt->execute([$yyyymm . '%', '%' . $yyyymm . '%']);
     }
     $rows = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
     $maxSeq = 0;
     foreach ($rows as $val) {
         $trimmed = trim($val);
-        if (preg_match('/^' . $yyyymm . '(\d{3})$/', $trimmed, $m)) {
+        if (preg_match('/' . $yyyymm . '.*?(\d{3,4})$/', $trimmed, $m)) {
             $seq = (int)$m[1];
             if ($seq > $maxSeq) $maxSeq = $seq;
-        } elseif (preg_match('/' . $yyyymm . '.*?(\d{3})$/', $trimmed, $m)) {
+        } elseif (preg_match('/^' . $yyyymm . '(\d{3,4})$/', $trimmed, $m)) {
             $seq = (int)$m[1];
             if ($seq > $maxSeq) $maxSeq = $seq;
         }

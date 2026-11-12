@@ -304,6 +304,18 @@ Object.assign(window.Modules, {
             fDocDate?.addEventListener('dblclick', () => Modules.openCalendar(fDocDate));
             fQuoteDate?.addEventListener('dblclick', () => Modules.openCalendar(fQuoteDate));
 
+            // 當處於新增模式時，若變更單據日期月份，即時重新計算該月份流水單號 (每月連續編碼)
+            fDocDate?.addEventListener('change', async () => {
+                if (statusMsg && statusMsg.textContent.includes('新增')) {
+                    const d = fDocDate.value.trim();
+                    if (d) {
+                        const newNo = await Modules.generateNextDocNo('quotation', d);
+                        fNo.value = newNo;
+                        Modules.setFormMode(winEl, grid, 'add', statusMsg, newNo);
+                    }
+                }
+            });
+
             const markDirty = () => { isDirty = true; };
             winEl.addEventListener('input', (e) => {
                 if (!e.target.classList.contains('erp-totals-inp')) isDirty = true;
@@ -390,6 +402,10 @@ Object.assign(window.Modules, {
                         tax_code: fTaxCode ? fTaxCode.value.trim() : 'S01',
                         tax_type: fTaxType ? (fTaxType.value === '1' ? '1:應稅內含' : (fTaxType.value === '2' ? '2:應稅外加' : (fTaxType.value === '3' ? '3:零稅率' : '4:免稅'))) : '1:應稅內含',
                         tax_rate: fTaxRate ? parseFloat(fTaxRate.value) || 5.0 : 5.0,
+                        quote_amount: parseFloat((fTotAmt?.value || '0').replace(/,/g, '')) || 0,
+                        tax_amount: parseFloat((fTotTax?.value || '0').replace(/,/g, '')) || 0,
+                        grand_total: parseFloat((fTotGrand?.value || '0').replace(/,/g, '')) || 0,
+                        total_qty: parseFloat((fTotQty?.value || '0').replace(/,/g, '')) || 0,
                         status: currentDocStatus,
                         customer_confirmed: isCustomerConfirmed ? 1 : 0
                     },

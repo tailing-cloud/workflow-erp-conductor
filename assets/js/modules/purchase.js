@@ -1503,11 +1503,14 @@ Object.assign(window.Modules, {
                 fReqUserDesc.textContent = d.req_user_name || '';
 
                 fBuyer.value = d.buyer || '';
+                if (fBuyerDesc) fBuyerDesc.textContent = d.buyer_name || '';
                 fSupNo.value = d.supplier_no || '';
-                fSupName.textContent = d.supplier_name || '';
+                if (fSupName) fSupName.textContent = d.supplier_name || '';
                 fDeliveryWh.value = d.delivery_wh || d.warehouse || 'P003';
                 fMultiTax.checked = !!d.multi_tax;
-                fPurQty.value = Math.round(d.pur_qty || d.req_qty || 0);
+                const reqQty = parseFloat(d.req_qty) || 0;
+                const purQty = (parseFloat(d.pur_qty) > 0) ? parseFloat(d.pur_qty) : reqQty;
+                fPurQty.value = Math.round(purQty);
                 fPackPurQty.value = Math.round(d.pack_pur_qty || 0);
                 fPurUnit.value = d.pur_unit || d.unit || 'PC';
                 fPackPurUnit.value = d.pack_pur_unit || '';
@@ -1517,10 +1520,13 @@ Object.assign(window.Modules, {
                 fTaxType.value = d.tax_type || '2 應稅外加';
                 fTaxRate.value = (d.tax_rate !== undefined && d.tax_rate !== null) ? d.tax_rate : '5.00';
                 fCurrency.value = d.currency || 'NTD';
-                fPricingQty.value = Math.round(d.pricing_qty || d.pur_qty || d.req_qty || 0);
-                fPurPrice.value = Math.round(d.pur_price || d.unit_price || 0);
+                const pricingQty = (parseFloat(d.pricing_qty) > 0) ? parseFloat(d.pricing_qty) : purQty;
+                fPricingQty.value = Math.round(pricingQty);
+                const purPrice = (parseFloat(d.pur_price) > 0) ? parseFloat(d.pur_price) : (parseFloat(d.unit_price) || 0);
+                fPurPrice.value = Math.round(purPrice);
                 fPricingUnit.value = d.pricing_unit || d.unit || 'PC';
-                fPurAmount.value = Math.round(d.pur_amount || d.amount || 0).toLocaleString();
+                const purAmt = (parseFloat(d.pur_amount) > 0) ? parseFloat(d.pur_amount) : (parseFloat(d.amount) || Math.round(purQty * purPrice));
+                fPurAmount.value = Math.round(purAmt).toLocaleString();
                 fInquiryCode.value = d.inquiry_code || 'N';
                 fDeliveryDate.value = d.delivery_date || Modules.getTodayStr();
                 fIsUrgent.checked = !!d.is_urgent;
@@ -1684,6 +1690,7 @@ Object.assign(window.Modules, {
                 }
                 const fullReqNo = dNo.includes('-') ? dNo : `${t}-${dNo}`;
                 const payload = {
+                    id: currentRecordId || 0,
                     req_no: fullReqNo,
                     line_no: fLineNo.value.trim() || '0001',
                     req_type: t,
@@ -1872,6 +1879,34 @@ Object.assign(window.Modules, {
                     fDeliveryWh.value = w.wh_no;
                     isDirty = true;
                 });
+            });
+
+            fSupNo.addEventListener('blur', async () => {
+                const sNo = fSupNo.value.trim();
+                if (sNo) {
+                    const res = await ERP_API.get('get_supplier', { supplier_no: sNo });
+                    if (res.success && res.supplier) {
+                        fSupName.textContent = res.supplier.name_short || res.supplier.full_name || '';
+                    } else {
+                        fSupName.textContent = '';
+                    }
+                } else {
+                    fSupName.textContent = '';
+                }
+            });
+
+            fBuyer.addEventListener('blur', async () => {
+                const bNo = fBuyer.value.trim();
+                if (bNo) {
+                    const res = await ERP_API.get('get_employee', { emp_no: bNo });
+                    if (res.success && res.employee) {
+                        fBuyerDesc.textContent = res.employee.emp_name || '';
+                    } else {
+                        fBuyerDesc.textContent = '';
+                    }
+                } else {
+                    fBuyerDesc.textContent = '';
+                }
             });
 
             winEl.querySelector('#puri06-lookup-tax')?.addEventListener('click', () => {
